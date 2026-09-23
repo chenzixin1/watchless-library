@@ -255,18 +255,33 @@ def make_poster(video: Path, dst: Path, fallback: Path | None) -> bool:
     return False
 
 
+# Watchless light-polished 稿在每段正文前单独放一张图：
+# ![场景 1](<keyframes/scene_001_00-00-38.jpg>)
+IMAGE_RE = re.compile(r"!\[[^\]]*\](?:\(<[^>\n]+>\)|\([^)\n]*\))")
+TAG_RE = re.compile(r"<[^>\n]+>")
+
+
+def summary_from_markdown(text: str) -> str:
+    """取第一段真正的正文。跳过标题、列表、引用，以及单独成段的配图。"""
+    for block in re.split(r"\n\s*\n", text):
+        cleaned = TAG_RE.sub(" ", IMAGE_RE.sub(" ", block))
+        flat = " ".join(cleaned.split())
+        if not flat or flat.startswith(("#", "-", ">", "|", "`")):
+            continue
+        if len(flat) < 40:
+            continue
+        return flat[:400]
+    return ""
+
+
 def extract_summary(project: Path) -> str:
     share = project / "share"
     if not share.exists():
         return ""
     for candidate in sorted(share.glob("*-light-polished.md")):
-        for block in re.split(r"\n\s*\n", candidate.read_text(encoding="utf-8")):
-            text = " ".join(block.split())
-            if not text or text.startswith("#") or text.startswith("-") or text.startswith(">"):
-                continue
-            if len(text) < 40:
-                continue
-            return text[:400]
+        summary = summary_from_markdown(candidate.read_text(encoding="utf-8"))
+        if summary:
+            return summary
     return ""
 
 

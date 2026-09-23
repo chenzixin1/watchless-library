@@ -1,8 +1,8 @@
 /* 由 tools/ingest.py 自动生成，请勿手动编辑。 */
 window.__CATALOG__ = {
  "site": {
-  "brand": "AI 实践库",
-  "subtitle": "技术运营 · 视频与图文笔记"
+  "brand": "Watchless 知识库",
+  "subtitle": "学习视频与图文笔记，边看边读"
  },
  "lessons": [
   {

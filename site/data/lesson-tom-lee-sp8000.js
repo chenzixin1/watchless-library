@@ -8,7 +8,7 @@ window.__LESSON__ = {
  "date": "2026-09-23",
  "month": "2026-09",
  "duration": 571.17,
- "summary": "![场景 1](<keyframes/scene_001_00-00-38.jpg>)",
+ "summary": "Brian（CNBC 主持人）：Tom Lee, also a CNBC contributor today, certainly is——kind of a face ripper，不只是股票，加密货币也是。我们一会儿再聊那个。我是不是错过了什么催化剂？发生了什么？",
  "video": "media/tom-lee-sp8000/video.mp4",
  "poster": "media/tom-lee-sp8000/poster.jpg",
  "tags": [
