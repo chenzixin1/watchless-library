@@ -1,7 +1,7 @@
 /* ==========================================================================
-   AI 实践库 · 固定脚本
+   Watchless 知识库 · 固定脚本
    数据来源：data/catalog.js、data/lesson-<id>.js（由 tools/ingest.py 生成）
-   新增课程时不需要修改本文件。
+   新增学习视频时不需要修改本文件。
    ========================================================================== */
 
 (function () {
@@ -69,7 +69,7 @@
   function statePage(mount, title, message, actionText, actionHref) {
     mount.innerHTML = '';
     var page = el('main', 'state-page');
-    page.appendChild(el('span', 'eyebrow', 'AI 实践库'));
+    page.appendChild(el('span', 'eyebrow', 'Watchless 知识库'));
     page.appendChild(el('h1', null, title));
     if (message) page.appendChild(el('p', null, message));
     if (actionText) {
@@ -84,12 +84,12 @@
     var bar = el('header', 'topbar');
     var brand = el('a', 'brand');
     brand.href = './index.html';
-    brand.appendChild(el('span', 'brand-mark', 'AI'));
-    brand.appendChild(el('span', 'brand-name', (window.__SITE__ && window.__SITE__.brand) || 'AI 实践库'));
+    brand.appendChild(el('span', 'brand-mark', 'W'));
+    brand.appendChild(el('span', 'brand-name', (window.__SITE__ && window.__SITE__.brand) || 'Watchless 知识库'));
     bar.appendChild(brand);
 
     var nav = el('nav', 'global-nav');
-    var bArchive = el('button', activePage === 'archive' ? 'active' : null, '分享档案');
+    var bArchive = el('button', activePage === 'archive' ? 'active' : null, '学习视频');
     bArchive.addEventListener('click', function () { location.href = './index.html'; });
     nav.appendChild(bArchive);
     if (activePage === 'lesson') {
@@ -103,9 +103,9 @@
       var form = el('form', 'header-search');
       var input = el('input');
       input.type = 'search';
-      input.placeholder = '搜索分享';
+      input.placeholder = '搜索视频';
       input.value = query || '';
-      input.setAttribute('aria-label', '顶部搜索分享');
+      input.setAttribute('aria-label', '搜索视频');
       form.appendChild(input);
       var btn = el('button', null, '\u2315');
       btn.type = 'submit';
@@ -119,7 +119,6 @@
       });
       tools.appendChild(form);
     }
-    tools.appendChild(el('span', 'header-note', '技术运营部'));
     bar.appendChild(tools);
     document.body.insertBefore(bar, document.body.firstChild);
   }
@@ -137,12 +136,12 @@
     loadScript('data/catalog.js', '__CATALOG__').then(function (data) {
       catalog = (data && data.lessons) || [];
       window.__SITE__ = (data && data.site) || {};
-      document.title = (window.__SITE__.brand || 'AI 实践库') + ' · 分享档案';
+      document.title = (window.__SITE__.brand || 'Watchless 知识库') + ' · 学习视频';
       renderTopbar('archive', query);
       render();
     }).catch(function (err) {
-      statePage(mount, '还没有可用的分享',
-        '用 tools/ingest.py 导入第一场分享，然后刷新本页。', '重新加载', location.pathname);
+      statePage(mount, '还没有学习视频',
+        '用 tools/ingest.py 导入第一条学习视频，然后刷新本页。', '重新加载', location.pathname);
       console.error(err);
     });
 
@@ -174,16 +173,16 @@
     function renderIntro() {
       var intro = el('section', 'archive-intro');
       var left = el('div');
-      left.appendChild(el('span', 'eyebrow', 'TECH OPS · LEARNING ARCHIVE'));
-      left.appendChild(el('h1', null, '分享档案'));
-      left.appendChild(el('p', null, '视频与图文笔记 · 点开任意一场，边看边读'));
+      left.appendChild(el('span', 'eyebrow', '边看边读'));
+      left.appendChild(el('h1', null, '学习视频'));
+      left.appendChild(el('p', null, '学习视频和配套笔记，点开任意一条即可边看边读'));
       intro.appendChild(left);
 
       var totalSeconds = catalog.reduce(function (s, x) { return s + (Number(x.duration) || 0); }, 0);
       var months = {};
       catalog.forEach(function (x) { months[x.month] = 1; });
       var stats = el('div', 'archive-stats');
-      [[catalog.length, '场分享'], [Object.keys(months).length, '个月份'],
+      [[catalog.length, '条视频'], [Object.keys(months).length, '个月份'],
        formatArchiveLength(totalSeconds)].forEach(function (pair) {
         var d = el('div');
         var s = el('strong', null, String(pair[0]));
@@ -198,13 +197,13 @@
     function renderMonthNav() {
       var nav = el('nav', 'month-nav');
       nav.setAttribute('aria-label', '月份导航');
-      nav.appendChild(el('span', 'eyebrow', '分享目录'));
+      nav.appendChild(el('span', 'eyebrow', '视频目录'));
 
       var counts = {};
       catalog.forEach(function (x) { counts[x.month] = (counts[x.month] || 0) + 1; });
 
       var all = el('button', month ? null : 'active');
-      all.appendChild(el('span', null, '全部分享'));
+      all.appendChild(el('span', null, '全部视频'));
       all.appendChild(el('span', null, String(catalog.length)));
       all.addEventListener('click', function () { setMonth(''); });
       nav.appendChild(all);
@@ -234,8 +233,8 @@
 
       var tools = el('div', 'archive-tools');
       var head = el('div');
-      head.appendChild(el('h2', null, month ? monthLabel(month) : '全部分享'));
-      head.appendChild(el('span', null, list.length + ' 场分享'));
+      head.appendChild(el('h2', null, month ? monthLabel(month) : '全部视频'));
+      head.appendChild(el('span', null, list.length + ' 条视频'));
       tools.appendChild(head);
 
       var search = el('label', 'tool-search');
@@ -244,7 +243,7 @@
       input.type = 'search';
       input.placeholder = '搜索主题、讲者、关键词';
       input.value = query;
-      input.setAttribute('aria-label', '搜索分享');
+      input.setAttribute('aria-label', '搜索视频');
       search.appendChild(input);
       if (query) {
         var clear = el('button', null, '\u00d7');
@@ -259,7 +258,7 @@
 
       var sel = el('select');
       sel.setAttribute('aria-label', '排列顺序');
-      [['newest', '最近分享优先'], ['oldest', '最早分享优先']].forEach(function (o) {
+      [['newest', '最近更新'], ['oldest', '最早更新']].forEach(function (o) {
         var opt = el('option', null, o[1]);
         opt.value = o[0];
         if (o[0] === sortOrder) opt.selected = true;
@@ -275,9 +274,9 @@
 
       if (!list.length) {
         var empty = el('div', 'archive-empty');
-        empty.appendChild(el('h3', null, catalog.length ? '没有找到相关分享' : '第一场分享，从这里开始'));
+        empty.appendChild(el('h3', null, catalog.length ? '没有找到相关视频' : '第一条学习视频，从这里开始'));
         empty.appendChild(el('p', null, catalog.length ? '换个关键词，或浏览全部月份。' : '资料导入完成后，这里会展示视频与图文笔记。'));
-        var btn = el('button', null, catalog.length ? '查看全部分享' : '重新加载');
+        var btn = el('button', null, catalog.length ? '查看全部视频' : '重新加载');
         btn.addEventListener('click', function () {
           if (catalog.length) { setMonth(''); setQuery(''); }
           else location.reload();
@@ -291,7 +290,7 @@
           var left = el('div');
           left.appendChild(el('span', 'month-badge', monthBadge(group.month)));
           left.appendChild(el('h3', null, monthLabel(group.month)));
-          left.appendChild(el('span', null, group.items.length + ' 场分享'));
+          left.appendChild(el('span', null, group.items.length + ' 条视频'));
           header.appendChild(left);
           header.appendChild(el('time', null, group.items[0].date || ''));
           sec.appendChild(header);
@@ -304,8 +303,7 @@
       }
 
       var footer = el('footer', 'archive-footer');
-      footer.appendChild(el('span', null, '技术运营 · AI 实践库'));
-      footer.appendChild(el('span', null, '把经验留下，让实践继续。'));
+      footer.appendChild(el('span', null, 'Watchless 知识库'));
       body.appendChild(footer);
       return body;
     }
@@ -321,7 +319,7 @@
       var main = el('div', 'row-main');
       main.appendChild(el('h4', null, item.title));
       var meta = el('p');
-      meta.appendChild(document.createTextNode(item.speaker || '分享人未记录'));
+      meta.appendChild(document.createTextNode(item.speaker || '讲者未记录'));
       meta.appendChild(el('span', null, (item.sceneCount || 0) + ' 章节 · 图文笔记'));
       main.appendChild(meta);
       row.appendChild(main);
@@ -396,7 +394,7 @@
         })[0];
       }
       if (!found) {
-        statePage(mount, '还没有可用的分享', '先导入一门课，这里就能边看边读。', '返回目录', './index.html');
+        statePage(mount, '还没有学习视频', '先导入一条学习视频，这里就能边看边读。', '返回目录', './index.html');
         return null;
       }
       id = found.id;
@@ -405,6 +403,7 @@
       if (!data) return;
       lesson = data;
       write(K_LAST, lesson.id);
+      document.title = lesson.title + ' · ' + ((window.__SITE__ && window.__SITE__.brand) || 'Watchless 知识库');
       renderLesson();
     }).catch(function (err) {
       statePage(mount, '内容暂时无法加载', String(err && err.message || err), '返回目录', './index.html');
@@ -436,7 +435,7 @@
       var head = el('div', 'lesson-heading');
 
       var crumb = el('div', 'breadcrumb');
-      var back = el('button', null, '全部分享');
+      var back = el('button', null, '全部视频');
       back.addEventListener('click', function () { location.href = './index.html'; });
       crumb.appendChild(back);
       crumb.appendChild(el('span', null, '/'));
@@ -448,13 +447,13 @@
       titleLine.appendChild(el('h1', null, lesson.title));
       var browse = el('button', 'browse-button');
       browse.appendChild(el('span', null, '\u2637'));
-      browse.appendChild(document.createTextNode(' 切换分享'));
+      browse.appendChild(document.createTextNode(' 切换视频'));
       browse.addEventListener('click', function () { location.href = './index.html'; });
       titleLine.appendChild(browse);
       head.appendChild(titleLine);
 
       var byline = el('div', 'byline');
-      byline.appendChild(el('span', null, lesson.speaker || '分享人未记录'));
+      byline.appendChild(el('span', null, lesson.speaker || '讲者未记录'));
       byline.appendChild(el('span', 'dot', '\u00b7'));
       byline.appendChild(el('span', null, format(lesson.duration) + ' 视频'));
       byline.appendChild(el('span', 'dot', '\u00b7'));
@@ -481,6 +480,8 @@
       v.controls = true;
       v.playsInline = true;
       v.preload = 'metadata';
+      v.width = 1280;
+      v.height = 720;
       v.setAttribute('aria-label', lesson.title);
       if (lesson.poster) v.poster = lesson.poster;
       v.src = lesson.video;
@@ -525,7 +526,7 @@
 
       var note = el('div', 'watch-note');
       note.appendChild(el('span', null, '\u2197'));
-      note.appendChild(el('p', null, '遇到值得回看的地方，点右侧时间或画面，回到分享现场。'));
+      note.appendChild(el('p', null, '遇到值得回看的地方，点右侧时间或画面，回到对应时刻。'));
       pane.appendChild(note);
       return pane;
     }
@@ -690,6 +691,9 @@
           var img = el('img');
           img.src = scene.image;
           img.alt = scene.visual || scene.title || '';
+          img.width = 1280;
+          img.height = 720;
+          img.decoding = 'async';
           img.loading = 'lazy';
           frame.appendChild(img);
           frame.appendChild(el('span', 'frame-badge', '\u2197 回看画面 ' + format(scene.frameTime)));
@@ -741,8 +745,7 @@
       }
 
       var end = el('div', 'reading-end');
-      end.appendChild(el('span', null, '— 本次分享结束 —'));
-      end.appendChild(el('p', null, '把经验留下，让实践继续。'));
+      end.appendChild(el('span', null, '— 本段学习结束 —'));
       body.appendChild(end);
       return body;
     }
