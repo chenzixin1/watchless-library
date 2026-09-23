@@ -35,13 +35,25 @@ npx skills add chenzixin1/watchless-library --skill watchless-library -g -a code
 
 ### 2. 给 AI 一个视频
 
-在新对话中调用 `watchless-library`，把下面这句话和你的视频链接发给 AI：
+安装后，在 AI 工具中选中或调用 `watchless-library`，然后任选一种方式：
+
+**方式一：直接发 YouTube 视频链接**
+
+复制 YouTube 视频的网址，发给 AI 即可，无需自己先下载：
 
 ```text
-使用 watchless-library，把这个视频整理成边看边读的学习页面，
-加入我的现有知识库，保留已有课程，完成后打开本地网站：
-<视频链接或本地文件路径>
+用 watchless-library 处理这个视频：https://www.youtube.com/watch?v=VIDEO_ID
 ```
+
+**方式二：提供本地视频文件**
+
+在支持附件的工具中添加视频，或直接给出本机文件路径：
+
+```text
+用 watchless-library 处理这个视频：/path/to/my-video.mp4
+```
+
+如果已经选中这个 Skill，直接发链接或文件即可。Skill 会负责整理章节、关键画面与笔记，并加入知识库；已有课程会保留，无需每次重复说明。YouTube 链接需要能够访问和下载，处理你拥有或已获授权的内容。
 
 首次处理时，让 AI 按 Skill 检查并准备运行环境。安装 Skill 后，仍需完成 Python、视频工具与所选转录服务的配置，详见[加入自己的视频](#加入自己的视频)。
 
@@ -114,15 +126,7 @@ python3 scripts/doctor.py
 
 ### 2. 让 AI 加载 Skill，然后给它视频
 
-在 WorkBuddy 等支持加载本地 Skill 的 AI 编程工具中，打开本仓库并加载 [SKILL.md](SKILL.md)。可以直接这样说：
-
-> 使用这个仓库的 Skill，把这个视频加入我的 Watchless 知识库：
-> https://www.youtube.com/watch?v=VIDEO_ID
-> 复用现有 site，保留已有课程，完成后打开学习页面。
-
-也可以提供本地文件：
-
-> 把 /path/to/my-video.mp4 整理成图文笔记，加入现有知识库。
+在 WorkBuddy 等支持加载本地 Skill 的 AI 编程工具中，加载 [SKILL.md](SKILL.md)，然后**发 YouTube 链接**或**提供本地视频文件**。两种方式的简短示例见[快速开始](#快速开始)。
 
 如需双语内容，可以补充：
 
