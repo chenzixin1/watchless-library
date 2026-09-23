@@ -1,0 +1,23 @@
+.DS_Store
+.runtime/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+*.py[cod]
+*.log
+.source-meta.json
+.env
+.env.*
+!.env.example
+
+# Local credentials and browser state
+.config/
+*.pem
+*.key
+
+# Temporary Watchless work products outside the bundled demo site
+outputs/
+workspaces/
+
+# Packaging output
+dist/*.zip

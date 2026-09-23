@@ -1,0 +1,8 @@
+requests
+moviepy
+Pillow
+openai
+numpy
+scikit-image
+
+tencentcloud-sdk-python-asr>=3.0.0
