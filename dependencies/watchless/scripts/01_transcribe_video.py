@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import importlib
 import importlib.util
 import json
@@ -338,7 +339,8 @@ def normalized_word_transcript(result, provider="volcengine"):
     return {
         "text": result.get("result", {}).get("text", ""),
         "words": words,
-        "metadata": {**result.get("metadata", {}), "provider": provider, "word_timestamps": True},
+        "metadata": {**result.get("metadata", {}), "provider": provider, "word_timestamps": bool(result.get("result", {}).get("utterances")) and
+                     all(bool(u.get("words")) for u in result["result"]["utterances"])},
     }
 
 
@@ -360,24 +362,29 @@ class AudioTranscriber:
             "RESOURCE_ID", default=DEFAULT_RESOURCE_ID
         )
         self.timeout = timeout
-        self.cache_dir = Path(__file__).resolve().parent / ".audiocache"
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_dir = Path.home() / ".cache" / "watchless" / "audio"
 
     def extract_audio_from_video(self, video_path):
         """Extract a compact mono MP3 from video and reuse it on later runs."""
         video_path = Path(video_path)
-        cached_path = self.cache_dir / f"{video_path.stem}.mp3"
+        self.cache_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        digest = hashlib.sha256()
+        with video_path.open('rb') as source:
+            for block in iter(lambda: source.read(1024 * 1024), b''):
+                digest.update(block)
+        cached_path = self.cache_dir / f"{digest.hexdigest()}.mp3"
         if cached_path.exists():
             print(f"Using cached audio: {cached_path}")
             return str(cached_path)
 
         print(f"Extracting audio: {video_path} -> {cached_path}")
+        temporary = cached_path.with_name(f".{cached_path.stem}-{uuid.uuid4().hex}.mp3")
         clip = VideoFileClip(str(video_path))
         try:
             if clip.audio is None:
                 raise ValueError("Video does not contain an audio track")
             clip.audio.write_audiofile(
-                str(cached_path),
+                str(temporary),
                 codec="libmp3lame",
                 bitrate="64k",
                 fps=16000,
@@ -385,10 +392,11 @@ class AudioTranscriber:
                 logger=None,
             )
         except Exception:
-            cached_path.unlink(missing_ok=True)
+            temporary.unlink(missing_ok=True)
             raise
         finally:
             clip.close()
+        temporary.replace(cached_path)
         return str(cached_path)
 
     def process_input_file(self, file_path):

@@ -6,11 +6,41 @@ from pathlib import Path
 import re
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from functools import partial
+from urllib.parse import urlsplit, unquote
 
 
 class MediaHandler(SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.allowed_request():
+            super().do_GET()
+
+    def do_HEAD(self):
+        if self.allowed_request():
+            super().do_HEAD()
+
+    def allowed_request(self):
+        # Reject DNS-rebinding hosts and never serve dotfiles or links outside the site.
+        try:
+            host = urlsplit('//' + self.headers.get('Host', '')).hostname
+            requested = unquote(urlsplit(self.path).path)
+            root = Path(self.directory).resolve()
+            path = Path(self.translate_path(self.path)).resolve()
+            allowed = host in {'localhost', '127.0.0.1', '::1'} and path.is_relative_to(root)
+            allowed = allowed and not any(part.startswith('.') for part in Path(requested).parts)
+            allowed = allowed and not any(part.startswith('.') for part in path.relative_to(root).parts)
+        except (ValueError, OSError):
+            allowed = False
+        if not allowed:
+            self.send_error(403, 'Forbidden')
+        return allowed
+
+    def list_directory(self, path):
+        self.send_error(403, 'Directory listing disabled')
+        return None
+
     def end_headers(self):
         self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('X-Content-Type-Options', 'nosniff')
         super().end_headers()
 
     def send_head(self):
@@ -22,7 +52,11 @@ class MediaHandler(SimpleHTTPRequestHandler):
         match = re.fullmatch(r'bytes=(\d*)-(\d*)', header.strip())
         if not match or not any(match.groups()):
             return super().send_head()
-        stream = open(path, 'rb')
+        try:
+            stream = open(path, 'rb')
+        except OSError:
+            self.send_error(404, 'File not found')
+            return None
         size = os.fstat(stream.fileno()).st_size
         first, last = match.groups()
         start = int(first) if first else max(0, size - int(last))

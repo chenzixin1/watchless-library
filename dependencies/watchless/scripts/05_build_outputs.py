@@ -99,7 +99,8 @@ def load_notes(notes_dir: Path) -> dict[int, dict[str, str]]:
 
 
 def _style_markdown(text: str) -> str:
-    style = """<style>
+    style = """<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<style>
 body { max-width: 1100px; margin: 0 auto; padding: 48px 64px; font-family: 'Songti SC','STSong',serif; line-height: 1.85; color: #202832; }
 h1,h2,h3 { font-family: 'PingFang SC','Hiragino Sans GB',sans-serif; line-height: 1.35; }
 h2 { margin-top: 2.5em; border-left: 5px solid #e66b23; padding-left: .7em; break-after: avoid; }
@@ -144,13 +145,16 @@ def build_share(manifest_path: Path, notes_dir: Path, output_root: Path, no_zip:
     light_path = share / f"{safe_name}-light-polished.md"
     explainer_path = share / f"{safe_name}-visual-explainer.md"
     light_path.write_text(light_text, encoding="utf-8")
-    explainer_path.write_text(_style_markdown(explainer_text), encoding="utf-8")
+    explainer_path.write_text(explainer_text, encoding="utf-8")
+    style_path = share / "style.html"
+    style_path.write_text(_style_markdown(""), encoding="utf-8")
 
     transcript = Path(manifest["transcript"]["path"])
     shutil.copy2(transcript, sources / transcript.name)
     html_path = share / f"{safe_name}-visual-explainer.html"
     subprocess.run(
-        ["pandoc", str(explainer_path), "--standalone", "--metadata", f"pagetitle={title}", "-o", str(html_path)],
+        ["pandoc", str(explainer_path), "--from=markdown-raw_html-raw_attribute",
+         "--include-in-header", str(style_path), "--standalone", "--metadata", f"pagetitle={title}", "-o", str(html_path)],
         check=True,
     )
     emit_progress("html", "complete", output=str(html_path))

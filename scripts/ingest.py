@@ -22,12 +22,15 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
@@ -35,7 +38,40 @@ from urllib.parse import urlparse
 SLUG_RE = re.compile(r"[^a-z0-9]+")
 WHO_RE = re.compile(r"^(.{1,24}?)[：:]\s*(.+)$", re.S)
 ROLE_RE = re.compile(r"^(.*?)\s*[（(]([^）)]*)[）)]\s*$", re.S)
-CUE_RE = re.compile(r"^\[([\d.]+)s\s*-\s*([\d.]+)s\]\s*([^:]+):\s*(.*)$")
+CUE_RE = re.compile(r"^\[(\d+(?:\.\d+)?)s\s*-\s*(\d+(?:\.\d+)?)s\]\s*(.*)$")
+LESSON_ID_RE = re.compile(r"^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$")
+
+
+def validate_lesson_id(value: str) -> str:
+    if not isinstance(value, str) or not LESSON_ID_RE.fullmatch(value):
+        raise ValueError("课程 id 仅允许字母、数字及中间的连字符")
+    return value
+
+
+def confined_path(root: Path, *parts: str) -> Path:
+    path = root.joinpath(*parts)
+    for parent in (path, *path.parents):
+        if parent == root:
+            break
+        if parent.is_symlink():
+            raise ValueError(f"写入目标不能是符号链接：{parent}")
+    if not path.resolve().is_relative_to(root.resolve()):
+        raise ValueError(f"目标路径越出站点：{path}")
+    return path
+
+
+def load_catalog(path: Path) -> dict:
+    if not path.exists():
+        return {"site": {"brand": "Watchless 知识库"}, "lessons": []}
+    match = re.search(r"window\.__CATALOG__\s*=\s*(\{.*\});\s*$", path.read_text(encoding="utf-8"), re.S)
+    if not match:
+        raise ValueError("目录格式异常，已停止入库以保留现有课程")
+    data = json.loads(match.group(1))
+    if not isinstance(data.get("lessons"), list):
+        raise ValueError("目录缺少 lessons 列表")
+    for item in data["lessons"]:
+        validate_lesson_id(item.get("id"))
+    return data
 
 
 def log(msg: str) -> None:
@@ -123,9 +159,13 @@ def parse_cues(transcript_txt: Path, speakers: dict) -> list[dict]:
         m = CUE_RE.match(line.strip())
         if not m:
             continue
-        start, end, who, text = float(m.group(1)), float(m.group(2)), m.group(3).strip(), m.group(4).strip()
-        if not text:
+        start, end, text = float(m.group(1)), float(m.group(2)), m.group(3).strip()
+        if not text or not math.isfinite(end) or end <= start:
             continue
+        who = ""
+        prefix = re.match(r"^([^:：]+)[:：]\s*(.*)$", text)
+        if prefix and (prefix.group(1) in speakers or prefix.group(1).startswith("说话人")):
+            who, text = prefix.groups()
         mapped = speakers.get(who, {})
         cues.append({
             "start": round(start, 2),
@@ -133,7 +173,7 @@ def parse_cues(transcript_txt: Path, speakers: dict) -> list[dict]:
             "speaker": mapped.get("name", who),
             "text": text,
         })
-    return cues
+    return sorted(cues, key=lambda cue: (cue["start"], cue["end"]))
 
 
 def load_speakers(path: Path) -> dict:
@@ -189,13 +229,14 @@ def video_ready(media_dir: Path, src: Path) -> bool:
     except (json.JSONDecodeError, OSError):
         return False
     st = src.stat()
-    return rec.get("size") == st.st_size and abs(float(rec.get("mtime") or 0) - st.st_mtime) < 1
+    return (rec.get("source") == str(src) and rec.get("size") == st.st_size
+            and rec.get("mtime_ns") == st.st_mtime_ns)
 
 
 def remember_video(media_dir: Path, src: Path, action: str) -> None:
     st = src.stat()
     (media_dir / ".source-meta.json").write_text(
-        json.dumps({"source": str(src), "size": st.st_size, "mtime": st.st_mtime, "action": action},
+        json.dumps({"source": str(src), "size": st.st_size, "mtime": st.st_mtime, "mtime_ns": st.st_mtime_ns, "action": action},
                    ensure_ascii=False, indent=1),
         encoding="utf-8",
     )
@@ -203,11 +244,20 @@ def remember_video(media_dir: Path, src: Path, action: str) -> None:
 
 def copy_video(src: Path, dst: Path, mode: str, use_link: bool) -> str:
     dst.parent.mkdir(parents=True, exist_ok=True)
-    if dst.exists():
-        dst.unlink()
-
     if mode == "skip":
         return ""
+    if dst.exists() and os.path.samefile(src, dst) and src.resolve() == dst.resolve():
+        raise ValueError("源视频与目标相同，不能覆盖原文件")
+
+    # Publish only after the copy/transcode succeeds; preserve the old playable file.
+    with tempfile.TemporaryDirectory(prefix=".video-", dir=dst.parent) as temporary:
+        staged = Path(temporary) / "video.mp4"
+        action = _copy_video(src, staged, mode, use_link)
+        staged.replace(dst)
+        return action
+
+
+def _copy_video(src: Path, dst: Path, mode: str, use_link: bool) -> str:
 
     need_transcode = mode == "transcode" or (mode == "auto" and not browser_safe(src))
     if need_transcode:
@@ -232,8 +282,15 @@ def copy_video(src: Path, dst: Path, mode: str, use_link: bool) -> str:
 
 def make_poster(video: Path, dst: Path, fallback: Path | None) -> bool:
     dst.parent.mkdir(parents=True, exist_ok=True)
-    if dst.exists():
-        dst.unlink()
+    with tempfile.TemporaryDirectory(prefix=".poster-", dir=dst.parent) as temporary:
+        staged = Path(temporary) / "poster.jpg"
+        if _make_poster(video, staged, fallback):
+            staged.replace(dst)
+            return True
+    return dst.is_file()
+
+
+def _make_poster(video: Path, dst: Path, fallback: Path | None) -> bool:
     try:
         dur = float(subprocess.run(
             ["ffprobe", "-v", "error", "-show_entries", "format=duration",
@@ -291,7 +348,44 @@ JS_HEADER = "/* 由 tools/ingest.py 自动生成，请勿手动编辑。 */\n"
 def write_js(path: Path, global_name: str, payload) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     body = json.dumps(payload, ensure_ascii=False, indent=1)
-    path.write_text(f"{JS_HEADER}window.{global_name} = {body};\n", encoding="utf-8")
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as stream:
+        temporary = Path(stream.name)
+        stream.write(f"{JS_HEADER}window.{global_name} = {body};\n")
+    try:
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def validate_localization(data: dict, scene_count: int) -> None:
+    if not isinstance(data, dict):
+        raise ValueError("localization 必须是对象")
+    notes = data.get("notes", {})
+    if not isinstance(notes, dict):
+        raise ValueError("notes 必须是语言映射")
+    for variant in notes.values():
+        if not isinstance(variant, dict) or not isinstance(variant.get("scenes"), list) or len(variant["scenes"]) != scene_count:
+            raise ValueError("语言版本必须与当前章节一一对应")
+        for scene in variant["scenes"]:
+            if not isinstance(scene, dict) or not isinstance(scene.get("paragraphs", []), list):
+                raise ValueError("语言章节结构异常")
+    subtitles = data.get("subtitles", [])
+    if not isinstance(subtitles, list):
+        raise ValueError("subtitles 必须是列表")
+    ids = set()
+    for track in subtitles:
+        if not isinstance(track, dict) or not isinstance(track.get("id"), str) or track["id"] in ids:
+            raise ValueError("字幕轨道 id 缺失或重复")
+        ids.add(track["id"])
+        if not isinstance(track.get("cues"), list):
+            raise ValueError("字幕缺少 cues 列表")
+        for cue in track["cues"]:
+            if not isinstance(cue, dict) or not isinstance(cue.get("text"), str):
+                raise ValueError("字幕文本格式异常")
+            start, end = cue.get("start"), cue.get("end")
+            if (not isinstance(start, (int, float)) or not isinstance(end, (int, float))
+                    or not math.isfinite(start) or not math.isfinite(end) or not 0 <= start < end):
+                raise ValueError("字幕时间范围异常")
 
 
 def main() -> None:
@@ -330,6 +424,8 @@ def main() -> None:
     site = site.resolve()
     if not (site / "assets" / "site.js").exists():
         die(f"站点目录无效（缺少 assets/site.js）：{site}")
+    catalog_path = confined_path(site, "data", "catalog.js")
+    existing = load_catalog(catalog_path)
 
     # ---------- 读取源数据 ----------
     acq_path = work / "acquisition.json"
@@ -347,7 +443,29 @@ def main() -> None:
         video_src = found[0] if found else None
 
     title = args.title or acq.get("title") or project.name
-    lesson_id = args.id or slugify(acq.get("video_id") or title)
+    source_identity = acq.get("video_id") or (str(video_src.resolve()) if video_src else str(project))
+    source_key = hashlib.sha256(source_identity.encode()).hexdigest()
+    prior = next((item for item in existing["lessons"] if item.get("sourceKey") == source_key), None)
+    if not prior:
+        for item in existing["lessons"]:
+            if acq.get("video_id") and item.get("sourceUrl") and item["sourceUrl"] == acq.get("input"):
+                prior = item
+                break
+            metadata = confined_path(site, "media", item["id"], ".source-meta.json")
+            if video_src and metadata.exists():
+                try:
+                    old_source = json.loads(metadata.read_text()).get("source")
+                    if old_source and Path(old_source).resolve() == video_src.resolve():
+                        prior = item
+                        break
+                except (OSError, ValueError):
+                    pass
+    default_id = prior["id"] if prior else f"{slugify(acq.get('video_id') or title)[:90]}-{source_key[:12]}"
+    lesson_id = validate_lesson_id(args.id or default_id)
+    confined_path(site, "data", f"lesson-{lesson_id}.js")
+    media_dir = confined_path(site, "media", lesson_id)
+    for part in ("frames", "video.mp4", "poster.jpg", ".source-meta.json", "localization.json"):
+        confined_path(site, "media", lesson_id, part)
 
     speakers = load_speakers(work / "speaker-map.json")
     known_names = {info["name"] for info in speakers.values() if info.get("name")}
@@ -361,6 +479,8 @@ def main() -> None:
     speaker = args.speaker or " / ".join(auto_speakers) or "分享人未记录"
 
     source_url = args.source_url or (acq.get("input") if str(acq.get("input", "")).startswith("http") else "")
+    if source_url and (urlparse(source_url).scheme not in {"http", "https"} or not urlparse(source_url).netloc):
+        raise ValueError("来源链接仅允许 http/https URL")
     source = args.source or ""
     if not source:
         if source_url:
@@ -412,21 +532,26 @@ def main() -> None:
     duration = float(acq.get("duration_sec") or (scenes[-1]["end"] if scenes else 0))
     summary = args.summary if args.summary is not None else extract_summary(project)
 
+    localization_path = work / "localization.json"
+    if not localization_path.exists():
+        localization_path = media_dir / "localization.json"
+    localization = None
+    if localization_path.exists():
+        localization = json.loads(localization_path.read_text(encoding="utf-8"))
+        validate_localization(localization, len(scenes))
+        old_path = site / "data" / f"lesson-{lesson_id}.js"
+        if localization_path.parent == media_dir and old_path.exists():
+            match = re.search(r"window\.__LESSON__\s*=\s*(\{.*\});\s*$", old_path.read_text(encoding="utf-8"), re.S)
+            if not match:
+                raise ValueError("旧课程数据异常，无法核对语言版本")
+            previous_scenes = json.loads(match.group(1)).get("scenes", [])
+            signature = lambda rows: [(row.get("start"), row.get("end"), row.get("title")) for row in rows]
+            if signature(previous_scenes) != signature(scenes):
+                raise ValueError("章节已变化，请重新生成 work/localization.json 后再入库")
+
     # ---------- 拷贝媒体 ----------
     media_dir = site / "media" / lesson_id
     frames_dir = media_dir / "frames"
-    if frames_dir.exists():
-        shutil.rmtree(frames_dir)
-    frames_dir.mkdir(parents=True, exist_ok=True)
-
-    frame_count = 0
-    for scene in scenes:
-        src = scene.pop("_frame_src", "")
-        if not src:
-            continue
-        shutil.copy2(src, frames_dir / Path(scene["image"]).name)
-        frame_count += 1
-
     video_rel = ""
     if video_src and args.video != "skip":
         if args.video == "auto" and video_ready(media_dir, video_src):
@@ -443,6 +568,27 @@ def main() -> None:
         log("按参数跳过视频")
     else:
         log("警告：未找到视频文件，课程将没有播放器")
+
+    media_dir.mkdir(parents=True, exist_ok=True)
+    frame_count = 0
+    with tempfile.TemporaryDirectory(prefix=".frames-", dir=media_dir) as temporary:
+        staged_frames = Path(temporary) / "frames"
+        staged_frames.mkdir()
+        for scene in scenes:
+            src = scene.pop("_frame_src", "")
+            if not src:
+                continue
+            shutil.copy2(src, staged_frames / Path(scene["image"]).name)
+            frame_count += 1
+        previous_frames = Path(temporary) / "previous"
+        if frames_dir.exists():
+            frames_dir.replace(previous_frames)
+        try:
+            staged_frames.replace(frames_dir)
+        except BaseException:
+            if previous_frames.exists():
+                previous_frames.replace(frames_dir)
+            raise
 
     poster_rel = ""
     first_frame = next((site / s["image"] for s in scenes if s.get("image")), None)
@@ -461,6 +607,7 @@ def main() -> None:
 
     lesson = {
         "id": lesson_id,
+        "sourceKey": source_key,
         "title": title,
         "speaker": speaker,
         "source": source,
@@ -475,12 +622,7 @@ def main() -> None:
         "scenes": scenes,
         "cues": cues,
     }
-    # Optional curated language variants; keep them when re-importing this lesson.
-    localization_path = work / "localization.json"
-    if not localization_path.exists():
-        localization_path = media_dir / "localization.json"
-    if localization_path.exists():
-        localization = json.loads(localization_path.read_text(encoding="utf-8"))
+    if localization is not None:
         for key in ("notes", "subtitles", "subtitleTiming"):
             if key in localization:
                 lesson[key] = localization[key]
@@ -491,22 +633,12 @@ def main() -> None:
     write_js(site / "data" / f"lesson-{lesson_id}.js", "__LESSON__", lesson)
 
     # ---------- 更新目录 ----------
-    catalog_path = site / "data" / "catalog.js"
-    site_meta = {"brand": "AI 实践库", "subtitle": "技术运营 · 视频与图文笔记"}
-    lessons = []
-    if catalog_path.exists():
-        raw = catalog_path.read_text(encoding="utf-8")
-        m = re.search(r"window\.__CATALOG__\s*=\s*(\{.*\});\s*$", raw, re.S)
-        if m:
-            try:
-                existing = json.loads(m.group(1))
-                site_meta = existing.get("site") or site_meta
-                lessons = existing.get("lessons") or []
-            except json.JSONDecodeError:
-                log("警告：目录文件解析失败，将重建")
+    site_meta = existing.get("site") or {"brand": "Watchless 知识库"}
+    lessons = existing["lessons"]
 
     entry = {
         "id": lesson_id,
+        "sourceKey": source_key,
         "title": title,
         "speaker": speaker,
         "source": source,

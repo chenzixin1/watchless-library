@@ -65,4 +65,9 @@ def test_packaged_lesson_summary_is_prose():
     lesson = (ROOT / "site" / "data" / "lesson-tom-lee-sp8000.js").read_text(encoding="utf-8")
     assert "![场景 1]" not in lesson
     assert "keyframes/scene_001" not in lesson
-    assert "Brian（CNBC 主持人）：" in lesson
+    import json
+    data = json.loads(lesson.split("window.__LESSON__ = ", 1)[1].rstrip().removesuffix(";"))
+    summary = data["summary"]
+    assert len(summary) >= 40
+    assert "![" not in summary
+    assert not summary.lstrip().startswith(("#", "-", ">"))

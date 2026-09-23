@@ -33,11 +33,13 @@ def extract_video_id(value: str) -> str | None:
         parsed = urlparse(raw)
     except ValueError:
         return None
-    host = parsed.netloc.lower().split(":", 1)[0]
+    if parsed.scheme not in {"http", "https"}:
+        return None
+    host = (parsed.hostname or "").lower()
     if host in {"youtu.be", "www.youtu.be"}:
         candidate = parsed.path.strip("/").split("/", 1)[0]
         return candidate if YOUTUBE_ID_RE.fullmatch(candidate) else None
-    if host.endswith("youtube.com") or host.endswith("youtube-nocookie.com"):
+    if any(host == domain or host.endswith('.' + domain) for domain in ("youtube.com", "youtube-nocookie.com")):
         query_id = parse_qs(parsed.query).get("v", [""])[0]
         if YOUTUBE_ID_RE.fullmatch(query_id):
             return query_id

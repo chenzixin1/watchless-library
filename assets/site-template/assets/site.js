@@ -529,9 +529,14 @@
       byline.appendChild(el('span', null, format(lesson.duration) + ' 视频'));
       byline.appendChild(el('span', 'dot', '\u00b7'));
       byline.appendChild(el('span', null, (lesson.scenes || []).length + ' 个章节'));
-      if (lesson.sourceUrl) {
+      var sourceUrl;
+      try {
+        var parsedSource = new URL(lesson.sourceUrl);
+        if (/^https?:$/.test(parsedSource.protocol)) sourceUrl = parsedSource.href;
+      } catch (e) {}
+      if (sourceUrl) {
         var link = el('a', null, (lesson.source || '原始视频') + ' \u2197');
-        link.href = lesson.sourceUrl;
+        link.href = sourceUrl;
         link.target = '_blank';
         link.rel = 'noopener';
         byline.appendChild(link);
@@ -768,7 +773,7 @@
       }
 
       (lesson.scenes || []).forEach(function (scene, i) {
-        if (translation && translation.scenes[i]) scene = Object.assign({}, scene, translation.scenes[i]);
+        if (translation && Array.isArray(translation.scenes) && translation.scenes[i]) scene = Object.assign({}, scene, translation.scenes[i]);
         var sec = el('article', 'scene');
         sec.id = 'scene-' + i;
 
@@ -908,6 +913,7 @@
 
     function setMode(value) {
       mode = value;
+      activeIndex = -1;
       $$('.mode-tabs button').forEach(function (b, i) {
         b.classList.toggle('selected', (i === 0) === (value === 'notes'));
       });

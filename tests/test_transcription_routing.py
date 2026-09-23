@@ -20,6 +20,7 @@ class RoutingTest(unittest.TestCase):
                 (project / 'work').mkdir(parents=True)
                 args = SimpleNamespace(max_height=1080, lang='en', no_browser_cookies=True,
                                        cookies_from_browser=None, use_source_subtitles=False, provider=provider)
+                (root / 'video.mp4').write_bytes(b'fixture video')
                 acquisition = {'title':'demo', 'local_video':str(root / 'video.mp4')}
                 class StopBeforeASR(Exception):
                     pass

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import tempfile
 import json
 import os
 import re
@@ -22,6 +24,7 @@ from video_notes_common import (
     parse_transcript_file,
     read_json,
     safe_slug,
+    source_fingerprint,
     write_json,
     write_timestamped_transcript,
 )
@@ -60,7 +63,14 @@ DEFAULT_STRATEGIES = {
 def resolve_initial_project(source: str, output_root: Path) -> Path:
     local = Path(source).expanduser()
     if local.is_file():
-        return output_root / safe_slug(local.stem)
+        legacy = output_root / safe_slug(local.stem)
+        acquisition_path = legacy / "work" / "acquisition.json"
+        if acquisition_path.exists():
+            previous = read_json(acquisition_path).get("input", "")
+            if previous and Path(previous).expanduser().resolve() == local.resolve():
+                return legacy
+        suffix = hashlib.sha256(str(local.resolve()).encode()).hexdigest()[:12]
+        return output_root / f"{safe_slug(local.stem)}-{suffix}"
     video_id = extract_video_id(source)
     if not video_id:
         raise ValueError("Unsupported input")
@@ -157,7 +167,7 @@ def prepare(source: str, output_root: Path, args: argparse.Namespace) -> Path:
     final_name = safe_slug(acquisition.get("title") or Path(acquisition["local_video"]).stem)
     if video_id:
         final_name += f"-{video_id}"
-    final_project = output_root / final_name
+    final_project = output_root / final_name if video_id else project
     if final_project != project and not final_project.exists():
         project.rename(final_project)
         project = final_project
@@ -174,31 +184,35 @@ def prepare(source: str, output_root: Path, args: argparse.Namespace) -> Path:
     video_use_transcripts.mkdir(parents=True, exist_ok=True)
     transcript_json = video_use_transcripts / f"{safe_slug(acquisition['title'])}.json"
     subtitle = acquisition.get("subtitle")
-    if args.use_source_subtitles and subtitle and Path(subtitle).is_file():
-        cues = parse_transcript_file(Path(subtitle))
-        if cues:
-            write_timestamped_transcript(cues, transcript)
-            transcript_json.write_text(
-                json.dumps(cues_to_word_transcript(cues), ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
-            )
-    if not transcript.is_file() or not transcript_json.is_file():
-        command = [
-            sys.executable,
-            str(SCRIPT_DIR / "01_transcribe_video.py"),
-            acquisition["local_video"],
-            "--output",
-            str(transcript),
-            "--provider",
-            args.provider,
-            "--lang",
-            args.lang,
-            "--json-output",
-            str(transcript_json),
-        ]
-        subprocess.run(command, check=True)
-    if not transcript_json.is_file():
-        raise RuntimeError("Word-level transcript JSON is missing")
+    request_path = transcript_dir / "request.json"
+    request = {"fingerprint": source_fingerprint(Path(acquisition["local_video"])),
+               "provider": args.provider, "language": args.lang,
+               "source_subtitles": args.use_source_subtitles,
+               "subtitle_fingerprint": source_fingerprint(Path(subtitle)) if args.use_source_subtitles and subtitle and Path(subtitle).is_file() else None}
+    reusable = (request_path.exists() and read_json(request_path) == request
+                and transcript.is_file() and transcript_json.is_file())
+    if not reusable:
+        with tempfile.TemporaryDirectory(prefix=".transcript-", dir=work) as temporary:
+            staged_text = Path(temporary) / "transcript.txt"
+            staged_json = Path(temporary) / "transcript.json"
+            if args.use_source_subtitles and subtitle and Path(subtitle).is_file():
+                cues = parse_transcript_file(Path(subtitle))
+                if cues:
+                    write_timestamped_transcript(cues, staged_text)
+                    write_json(staged_json, cues_to_word_transcript(cues))
+            if not staged_text.is_file() or not staged_json.is_file():
+                command = [
+                    sys.executable, str(SCRIPT_DIR / "01_transcribe_video.py"),
+                    acquisition["local_video"], "--output", str(staged_text),
+                    "--provider", args.provider, "--lang", args.lang,
+                    "--json-output", str(staged_json),
+                ]
+                subprocess.run(command, check=True)
+            if not staged_text.is_file() or not staged_json.is_file():
+                raise RuntimeError("Timestamped transcript output is missing")
+            staged_text.replace(transcript)
+            staged_json.replace(transcript_json)
+            write_json(request_path, request)
     packed_transcript = build_packed_transcript(work, transcript_json)
     evidence = OVERVIEW.prepare_overview(Path(acquisition["local_video"]), verify, args.mode_samples)
     state = {

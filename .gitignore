@@ -1,5 +1,6 @@
 .DS_Store
 .runtime/
+.audiocache/
 __pycache__/
 .pytest_cache/
 *.egg-info/

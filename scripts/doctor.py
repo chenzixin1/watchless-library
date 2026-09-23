@@ -39,7 +39,7 @@ def main() -> int:
         checks.append(status("window.__CATALOG__" in text, "catalog format"))
 
     video = site / "media" / "tom-lee-sp8000" / "video.mp4"
-    if video.exists():
+    if video.exists() and shutil.which('ffprobe'):
         result = subprocess.run(
             ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,pix_fmt", "-of", "json", str(video)],
             capture_output=True,

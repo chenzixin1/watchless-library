@@ -116,7 +116,8 @@ def acquire(
         cached_video = Path(cached.get("local_video") or "")
         if not cached_video.is_file() and cached_video.name:
             cached_video = source_dir / cached_video.name
-        if cached.get("input") == source and cached_video.is_file():
+        if (cached.get("input") == source and cached_video.is_file()
+                and cached.get("fingerprint") == source_fingerprint(cached_video)):
             cached["local_video"] = str(cached_video.resolve())
             subtitles = _subtitle_candidates(cached_video, language)
             cached["subtitle"] = str(subtitles[0].resolve()) if subtitles else None
