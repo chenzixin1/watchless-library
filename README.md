@@ -45,6 +45,8 @@ npx skills add chenzixin1/watchless-library --skill watchless-library -g -a code
 
 首次处理时，让 AI 按 Skill 检查并准备运行环境。安装 Skill 后，仍需完成 Python、视频工具与所选转录服务的配置，详见[加入自己的视频](#加入自己的视频)。
 
+**没有云端 ASR 密钥？也可以使用本地 Whisper 回退。** 对 AI 补充一句「转录使用本地 Whisper」，即可让它按本地方案准备依赖并处理音频。首次使用需要下载模型，转录在本机运行，无需云端 ASR 密钥。回退需显式选择，不会在云端失败时自动切换。
+
 **以后只需继续发视频，知识库就会继续积累。**
 
 <details>
@@ -108,7 +110,7 @@ python3 scripts/setup_runtime.py
 python3 scripts/doctor.py
 ```
 
-视频转录还需要配置所选 ASR 服务。依赖安装不会自动配置云端凭证；具体转录要求见 [内置 Watchless 工作流](dependencies/watchless/SKILL.zh-CN.md)。
+视频转录默认使用腾讯云 ASR，需要配置相应凭证；也支持显式选择本地 Whisper 作为回退。依赖安装不会自动配置云端凭证；具体转录要求见 [内置 Watchless 工作流](dependencies/watchless/SKILL.zh-CN.md)。
 
 ### 2. 让 AI 加载 Skill，然后给它视频
 
@@ -157,6 +159,20 @@ python3 scripts/run_watchless.py --cwd "$PWD" \
 ```
 
 `prepare` 是准备阶段；完整流程还需按 [SKILL.md](SKILL.md) 完成后续场景、选帧和笔记处理。
+
+### 使用本地 Whisper 回退
+
+先完成运行环境准备，再安装可选 Whisper 依赖：
+
+```bash
+.runtime/venv/bin/python -m pip install \
+  -r dependencies/watchless/scripts/requirements-whisper.txt
+
+python3 scripts/run_watchless.py --cwd "$PWD" \
+  "/path/to/my-video.mp4" --stage prepare --provider whisper
+```
+
+默认模型为 `small`。首次运行需要下载模型权重，速度取决于本机硬件；此处音频转录使用本地 Whisper，后续笔记整理仍由你使用的 AI 编程工具完成。
 
 ### 将处理结果加入站点
 
