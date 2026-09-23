@@ -9,13 +9,46 @@
 
 **视频与笔记联动 · 关键画面 · 中英阅读 · 持续入库**
 
-[快速开始](#快速开始) · [加入自己的视频](#加入自己的视频) · [工作原理](#工作原理) · [Watchless](https://github.com/chenzixin1/watchless)
+[安装 Skill](#快速开始) · [加入自己的视频](#加入自己的视频) · [工作原理](#工作原理) · [Watchless](https://github.com/chenzixin1/watchless)
 
 </div>
 
 ---
 
 ## 快速开始
+
+### 1. 一行命令，安装 Skill
+
+已安装 Node.js / npm 后，在终端运行：
+
+```bash
+npx skills add chenzixin1/watchless-library --skill watchless-library
+```
+
+按提示选择要使用的 AI 编程工具和安装范围。使用 Codex 时，也可以直接全局安装：
+
+```bash
+npx skills add chenzixin1/watchless-library --skill watchless-library -g -a codex -y
+```
+
+安装方式使用 [Skills CLI](https://github.com/vercel-labs/skills)。私有仓库需要你的 GitHub 账号拥有访问权限，并已配置 Git 身份验证。
+
+### 2. 给 AI 一个视频
+
+在新对话中调用 `watchless-library`，把下面这句话和你的视频链接发给 AI：
+
+```text
+使用 watchless-library，把这个视频整理成边看边读的学习页面，
+加入我的现有知识库，保留已有课程，完成后打开本地网站：
+<视频链接或本地文件路径>
+```
+
+首次处理时，让 AI 按 Skill 检查并准备运行环境。安装 Skill 后，仍需完成 Python、视频工具与所选转录服务的配置，详见[加入自己的视频](#加入自己的视频)。
+
+**以后只需继续发视频，知识库就会继续积累。**
+
+<details>
+<summary><strong>想先看看效果？直接启动仓库内置示例</strong></summary>
 
 仓库已包含一门约 9 分半的示例课程，带 **13 个场景、视频、关键帧、中英文笔记和三种字幕选项**。可以先体验阅读效果，再配置视频处理环境。
 
@@ -35,6 +68,8 @@ python3 scripts/serve.py
 **试着做三件事：** 点击一个章节跳转视频；切换图文笔记的中英文；开启双语字幕。
 
 预览服务只监听本机，支持视频按位置读取，拖动进度条时不必先加载完整视频。仅浏览示例无需安装转录依赖或配置 ASR 密钥。
+
+</details>
 
 ## 看一眼，了解它能做什么
 
