@@ -28,6 +28,15 @@
     var h = Math.floor(t / 3600);
     return (h ? h + ':' : '') + pad(Math.floor(t / 60) % 60) + ':' + pad(t % 60);
   }
+  function formatArchiveLength(totalSeconds) {
+    var seconds = Math.max(0, Number(totalSeconds) || 0);
+    if (seconds < 3600) {
+      return [Math.max(1, Math.round(seconds / 60)), '分钟内容'];
+    }
+    var hours = Math.round(seconds / 360) / 10;
+    return [Number.isInteger(hours) ? String(hours) : hours.toFixed(1), '小时内容'];
+  }
+
   function monthLabel(key) {
     var m = /^(\d{4})-(\d{2})$/.exec(key || '');
     return m ? m[1] + ' 年 ' + Number(m[2]) + ' 月' : (key || '未归类');
@@ -175,7 +184,7 @@
       catalog.forEach(function (x) { months[x.month] = 1; });
       var stats = el('div', 'archive-stats');
       [[catalog.length, '场分享'], [Object.keys(months).length, '个月份'],
-       [Math.max(1, Math.round(totalSeconds / 3600)), '小时内容']].forEach(function (pair) {
+       formatArchiveLength(totalSeconds)].forEach(function (pair) {
         var d = el('div');
         var s = el('strong', null, String(pair[0]));
         d.appendChild(s);
