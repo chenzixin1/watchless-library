@@ -2,7 +2,7 @@
 
 ## 执行摘要
 
-- **审计对象**：`video-learning-site` 完整 Skill 仓库
+- **审计对象**：`watchless-library` 完整 Skill 仓库
 - **审计时间**：2026-09-23
 - **审计范围**：根 `SKILL.md`、所有脚本、固定站点、课程数据、内置 Watchless 与 video-use 源码、文档和许可证
 - **发现问题总数**：0 个阻断或需确认问题
@@ -74,7 +74,7 @@
 
 ### 元数据检查
 
-- 根 Skill 名称符合小写连字符规范：`video-learning-site`
+- 根 Skill 名称符合小写连字符规范：`watchless-library`
 - `description` 明确说明输入、产出、触发场景和内置能力
 - `agent_created: true` 已设置
 - 无占位符、异常重复字符或伪装描述

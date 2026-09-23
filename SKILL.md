@@ -1,5 +1,5 @@
 ---
-name: video-learning-site
+name: watchless-library
 description: 将视频链接或本地视频文件转换为固定风格的“边看边读”学习网站，并把新课程持续追加到同一目录。用于“把视频做成学习站”“像 agent-learning 那样整理”“把新视频加入学习库”等请求。Skill 已内置 Watchless、video-use、站点模板、入库脚本和示例课程，可完成转录、语义分段、关键帧、图文笔记、视频联动与目录更新。
 description_zh: 视频转固定风格学习网站并持续入库
 description_en: Turn videos into a cumulative watch-and-read learning site
@@ -7,7 +7,7 @@ disable: false
 agent_created: true
 ---
 
-# Video Learning Site
+# Watchless Library
 
 将输入视频处理成固定风格学习站：左侧视频与章节，右侧图文笔记；播放时自动跟随，点击段落跳回对应时刻，自动保存学习进度。
 
