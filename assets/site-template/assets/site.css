@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AI 实践库 · 固定样式表
+   Watchless 知识库 · 固定样式表
    风格锁定：Developer Center 深色顶栏 + 蓝色强调 + 浅灰纸底
    新增课程时不需要修改本文件。
    ========================================================================== */
@@ -168,8 +168,6 @@ select:focus-visible,
 .header-search input::placeholder { color: var(--muted-2); }
 .header-search:focus-within { outline: 2px solid #6da0ff; }
 .header-search button { font-size: 18px; line-height: 1; color: #9aaac1; }
-
-.header-note { color: var(--bar-muted); white-space: nowrap; }
 
 /* ==================== archive page ==================== */
 
@@ -804,7 +802,6 @@ select:focus-visible,
 @media (max-width: 1050px) {
   .topbar { gap: 25px; padding: 0 20px; }
   .header-search { width: 180px; }
-  .header-note { display: none; }
   .archive-intro { margin-left: 180px; padding: 24px; }
   .month-nav { width: 180px; }
   .archive-body { padding-left: 204px; padding-right: 24px; }
