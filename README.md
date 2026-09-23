@@ -193,8 +193,7 @@ python3 scripts/run_watchless.py --cwd "$PWD" \
 先完成运行环境准备，再安装可选 Whisper 依赖：
 
 ```bash
-.runtime/venv/bin/python -m pip install \
-  -r dependencies/watchless/scripts/requirements-whisper.txt
+python3 scripts/setup_runtime.py --with-whisper
 
 python3 scripts/run_watchless.py --cwd "$PWD" \
   "/path/to/my-video.mp4" --stage prepare --provider whisper

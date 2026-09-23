@@ -24,6 +24,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Set up the isolated Python runtime")
     parser.add_argument("--python", default=sys.executable, help="Python 3.10+ executable")
     parser.add_argument("--rebuild", action="store_true", help="Recreate the runtime from scratch")
+    parser.add_argument("--with-whisper", action="store_true", help="Also install optional local Whisper transcription dependencies")
     args = parser.parse_args()
 
     if sys.version_info < (3, 10):
@@ -50,6 +51,9 @@ def main() -> int:
         "curl-cffi",
     ])
     run([python, "-m", "pip", "install", "-e", str(VIDEO_USE)])
+
+    if args.with_whisper:
+        run([python, "-m", "pip", "install", "-r", str(WATCHLESS / "scripts" / "requirements-whisper.txt")])
 
     print(f"Runtime ready: {RUNTIME}")
     print("System commands still required: ffmpeg, ffprobe, and a Chromium-based browser")

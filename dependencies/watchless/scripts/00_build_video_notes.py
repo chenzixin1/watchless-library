@@ -191,6 +191,8 @@ def prepare(source: str, output_root: Path, args: argparse.Namespace) -> Path:
             str(transcript),
             "--provider",
             args.provider,
+            "--lang",
+            args.lang,
             "--json-output",
             str(transcript_json),
         ]

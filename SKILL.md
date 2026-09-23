@@ -1,10 +1,10 @@
 ---
 name: watchless-library
 description: 将视频链接或本地视频文件转换为固定风格的“边看边读”学习网站，并把新课程持续追加到同一目录。用于“把视频做成学习站”“像 agent-learning 那样整理”“把新视频加入学习库”等请求。Skill 已内置 Watchless、video-use、站点模板、入库脚本和示例课程，可完成转录、语义分段、关键帧、图文笔记、视频联动与目录更新。
-description_zh: 视频转固定风格学习网站并持续入库
-description_en: Turn videos into a cumulative watch-and-read learning site
-disable: false
-agent_created: true
+metadata:
+  description_zh: 视频转固定风格学习网站并持续入库
+  description_en: Turn videos into a cumulative watch-and-read learning site
+  agent_created: true
 ---
 
 # Watchless Library
@@ -12,6 +12,27 @@ agent_created: true
 将输入视频处理成固定风格学习站：左侧视频与章节，右侧图文笔记；播放时自动跟随，点击段落跳回对应时刻，自动保存学习进度。
 
 保持站点外壳稳定。新增视频时只生成课程数据、媒体文件并更新目录，不为单个课程修改模板。
+
+## 输入与默认行为
+
+用户调用本 Skill 后，只提供 YouTube 链接、视频附件或本地视频路径，也表示希望完成整个学习站流程，无需要求用户补写长提示词。
+
+- **YouTube 链接**：直接把 URL 交给 prepare，自动获取视频；不要让用户预先下载。下载受阻时说明实际原因，必要时请用户提供已获授权的本地文件。
+- **本地视频**：使用附件在本机的实际路径，或用户提供的路径；先确认文件存在，不移动或覆盖原文件。附件没有可读取路径时，再请求补充。
+- 默认完成转录、章节、关键帧、图文笔记、入库和本地预览，不停在 prepare。
+- 默认保留已有课程、复用当前知识库。重复来源优先复用目录内已有课程 ID，避免重复入库；有多个可能的知识库且无法从会话确定时，再询问目标。
+
+## 音频转文字方案
+
+| 用户选择 | prepare 参数 | 准备工作 |
+| --- | --- | --- |
+| 腾讯云 ASR | `--provider tencent` | 已配置腾讯云 ASR 凭证，支持词级时间戳与说话人分离 |
+| 火山引擎 ASR | `--provider volcengine` | 已配置火山引擎 ASR 凭证 |
+| 本地 Whisper | `--provider whisper` | 运行 `scripts/setup_runtime.py --with-whisper`，首次转录下载模型，默认 small |
+
+沿用用户在本次工作中已选定的方案。未指定时说明当前默认为腾讯云；默认方案未配置或用户要求本地处理时，简短说明三种选项并让用户选择，不擅自改用其他服务。失败后报告原因，不静默切换。
+
+传入与视频语言一致的 `--lang`（例如英文 `en`、中文 `zh`），不要因为笔记要求中文就把英文音频按中文识别。语言不确定时先检查短片段。本地 Whisper 仅保证音频转录在本机执行，后续笔记仍由当前 AI 工具处理。
 
 ## Bundled resources
 
@@ -63,7 +84,7 @@ python3 "$SKILL_ROOT/scripts/init_site.py" "<目标站点目录>"
 
 ```bash
 python3 "$SKILL_ROOT/scripts/run_watchless.py" --cwd "<工作目录>" \
-  "<视频链接或文件路径>" --stage prepare
+  "<视频链接或文件路径>" --stage prepare --provider "<tencent|volcengine|whisper>" --lang "<en|zh>"
 ```
 
 读取输出的 `PROJECT_DIR`、`verify/mode-overview.jpg` 和 `work/video-use/takes_packed.md`，再按内容选择路由：
@@ -81,6 +102,16 @@ python3 "$SKILL_ROOT/scripts/run_watchless.py" --cwd "<工作目录>" \
 5. 为每个场景生成 `work/codex-notes/scene_NNN.md`，保留关键观点、完整上下文和画面说明。
 
 无需先生成 Watchless 的最终 PDF；学习站入库只依赖 `work/` 目录。
+
+### 可选双语内容
+
+用户要求中英文笔记或字幕时，在入库前生成 `work/localization.json`，结构参考仓库示例 `site/media/tom-lee-sp8000/localization.json`：
+
+- 中文正文放在场景笔记中；`notes.en` 提供英文 `label`、`summary` 和与场景顺序一致的 `scenes`（`title`、`visual`、`paragraphs`）。英文原话来自转录，不从中文反向翻译冒充原文。
+- `subtitles` 提供英文、中文、双语轨道，每轨包含 `id`、`label`、`language`、`cues`；每个 cue 使用秒单位的 `start`、`end` 和 `text`。
+- 译文应与原文时间段对应；估算分句时间需在 `subtitleTiming` 标记，不声称逐词校准。
+- 入库脚本读取此文件并保存在课程媒体目录。重做场景分段或转录后同步更新语言数据，避免复用旧场景对应关系。
+- 在浏览器检查笔记语言切换、字幕开关与三种字幕选项；未生成的语言不要显示为已完成。
 
 ### 5. 入库并更新目录
 
@@ -131,9 +162,10 @@ ffprobe -v error -select_streams v:0 \
 ### 7. 预览与交付
 
 ```bash
-cd "<学习站目录>"
-python3 -m http.server 8765 --bind 127.0.0.1
+python3 "$SKILL_ROOT/scripts/serve.py" --directory "<学习站目录>" --port 8765
 ```
+
+先检查是否已有服务在预览同一站点，有则复用；端口被其他服务占用时另选端口，不终止无关进程。该服务器支持视频 Range 请求，跳播不需顺序下载整段视频。
 
 打开目录页和 `lesson.html?id=<id>`。需要公开分享时，再使用部署能力发布整个站点目录。
 
