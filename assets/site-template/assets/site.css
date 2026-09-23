@@ -91,28 +91,27 @@ select:focus-visible,
 
 .brand {
   display: flex;
-  align-items: center;
-  gap: 11px;
+  align-items: baseline;
+  gap: 12px;
   color: var(--bar-ink-strong);
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: .02em;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 4px;
-  background: linear-gradient(135deg, #3a84ff, #45c4ee);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0;
-  flex-shrink: 0;
+.brand-wordmark {
+  font-family: Baskerville, "Times New Roman", serif;
+  font-size: 1.6rem;
+  font-weight: 400;
+  letter-spacing: -.025em;
+  line-height: 1;
+}
+
+.brand-descriptor {
+  font-family: "Songti SC", serif;
+  color: #f0eee8;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: .08em;
 }
 
 .global-nav {
@@ -830,7 +829,8 @@ select:focus-visible,
 
 @media (max-width: 740px) {
   .topbar { height: auto; min-height: 60px; flex-wrap: wrap; gap: 12px; padding: 12px 18px; }
-  .brand { font-size: 16px; }
+  .brand-wordmark { font-size: 1.4rem; }
+  .brand-descriptor { font-size: 1rem; }
   .global-nav { height: 36px; order: 3; width: 100%; gap: 22px; }
   .header-tools { margin-left: auto; }
   .header-search { width: 140px; }
@@ -886,3 +886,15 @@ select:focus-visible,
   .read-pane { border: 0; height: auto; }
   .reading-scroll { overflow: visible; }
 }
+
+/* Subtitle controls use native text tracks for inline and fullscreen playback. */
+.subtitle-controls { display:flex; align-items:center; gap:10px; padding:0 16px 12px; }
+.subtitle-toggle, .subtitle-language { font:inherit; font-size:.8rem; border:1px solid var(--line); border-radius:4px; padding:6px 10px; background:var(--paper, #fff); color:var(--ink); }
+.subtitle-toggle[aria-pressed="true"] { color:#245dc4; border-color:#abc4f0; background:#edf3ff; }
+.subtitle-toggle:disabled { color:var(--muted); cursor:default; }
+.subtitle-toggle:focus-visible, .subtitle-language:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+video::cue { background:rgba(0,0,0,.78); color:#fff; font-family:"PingFang SC",sans-serif; }
+
+.note-language { font:inherit; font-size:.8rem; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:4px; padding:5px 8px; max-width:150px; }
+.reading-toolbar { flex-wrap:wrap; }
+.note-language:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }

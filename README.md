@@ -25,8 +25,7 @@ python3 scripts/setup_runtime.py
 python3 scripts/doctor.py
 
 # 3. 预览已打包的网站
-cd site
-python3 -m http.server 8765 --bind 127.0.0.1
+python3 scripts/serve.py
 ```
 
 浏览器打开：

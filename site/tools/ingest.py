@@ -475,6 +475,19 @@ def main() -> None:
         "scenes": scenes,
         "cues": cues,
     }
+    # Optional curated language variants; keep them when re-importing this lesson.
+    localization_path = work / "localization.json"
+    if not localization_path.exists():
+        localization_path = media_dir / "localization.json"
+    if localization_path.exists():
+        localization = json.loads(localization_path.read_text(encoding="utf-8"))
+        for key in ("notes", "subtitles", "subtitleTiming"):
+            if key in localization:
+                lesson[key] = localization[key]
+        if localization_path != media_dir / "localization.json":
+            (media_dir / "localization.json").write_text(
+                json.dumps(localization, ensure_ascii=False, indent=2), encoding="utf-8")
+
     write_js(site / "data" / f"lesson-{lesson_id}.js", "__LESSON__", lesson)
 
     # ---------- 更新目录 ----------

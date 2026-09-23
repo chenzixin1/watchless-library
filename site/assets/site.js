@@ -84,12 +84,17 @@
     var bar = el('header', 'topbar');
     var brand = el('a', 'brand');
     brand.href = './index.html';
-    brand.appendChild(el('span', 'brand-mark', 'W'));
-    brand.appendChild(el('span', 'brand-name', (window.__SITE__ && window.__SITE__.brand) || 'Watchless 知识库'));
+    var brandName = (window.__SITE__ && window.__SITE__.brand) || 'Watchless 知识库';
+    if (brandName === 'Watchless 知识库') {
+      brand.appendChild(el('span', 'brand-wordmark', 'Watchless'));
+      brand.appendChild(el('span', 'brand-descriptor', '知识库'));
+    } else {
+      brand.appendChild(el('span', 'brand-wordmark', brandName));
+    }
     bar.appendChild(brand);
 
     var nav = el('nav', 'global-nav');
-    var bArchive = el('button', activePage === 'archive' ? 'active' : null, '学习视频');
+    var bArchive = el('button', activePage === 'archive' ? 'active' : null, '目录');
     bArchive.addEventListener('click', function () { location.href = './index.html'; });
     nav.appendChild(bArchive);
     if (activePage === 'lesson') {
@@ -364,6 +369,71 @@
     };
   }
 
+  // Native text tracks also remain available in fullscreen playback.
+  function attachSubtitles(v, lesson, pane) {
+    var definitions = lesson.subtitles || [];
+    if (!definitions.length && (lesson.cues || []).length) {
+      definitions = [{id: 'original', label: '原文', language: '', cues: lesson.cues}];
+    }
+    var control = el('div', 'subtitle-controls');
+    var toggle = el('button', 'subtitle-toggle', '字幕');
+    toggle.type = 'button';
+    toggle.setAttribute('aria-label', '开启字幕');
+    toggle.setAttribute('aria-pressed', 'false');
+    var select = el('select', 'subtitle-language');
+    select.setAttribute('aria-label', '字幕语言');
+    var tracks = [];
+    definitions.forEach(function (definition) {
+      var cues = (definition.cues || []).filter(function (cue) {
+        return Number.isFinite(cue.start) && Number.isFinite(cue.end) && cue.end > cue.start && cue.text;
+      });
+      if (!cues.length || typeof VTTCue === 'undefined') return;
+      var track = v.addTextTrack('subtitles', definition.label, definition.language || '');
+      track.mode = 'hidden';
+      cues.forEach(function (cue) {
+        var text = String(cue.text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        track.addCue(new VTTCue(cue.start, cue.end, text));
+      });
+      track.mode = 'disabled';
+      tracks.push({id: definition.id, track: track});
+      var option = el('option', null, definition.label);
+      option.value = definition.id;
+      select.appendChild(option);
+    });
+    if (!tracks.length) {
+      toggle.disabled = true;
+      toggle.textContent = '暂无字幕';
+      control.appendChild(toggle);
+      pane.appendChild(control);
+      return;
+    }
+    var preference = read('learning-site:subtitles', {enabled: false, language: tracks[0].id});
+    var selected = tracks.some(function (item) { return item.id === preference.language; }) ? preference.language : tracks[0].id;
+    select.value = selected;
+    function sync(enabled, save) {
+      tracks.forEach(function (item) { item.track.mode = enabled && item.id === select.value ? 'showing' : 'disabled'; });
+      toggle.setAttribute('aria-pressed', String(enabled));
+      toggle.setAttribute('aria-label', enabled ? '关闭字幕' : '开启字幕');
+      toggle.textContent = enabled ? '字幕已开启' : '字幕已关闭';
+      if (save) write('learning-site:subtitles', {enabled: enabled, language: select.value});
+    }
+    toggle.addEventListener('click', function () { sync(toggle.getAttribute('aria-pressed') !== 'true', true); });
+    select.addEventListener('change', function () { sync(true, true); });
+    v.textTracks.addEventListener('change', function () {
+      var active = tracks.find(function (item) { return item.track.mode === 'showing'; });
+      var enabled = Boolean(active);
+      if (active) select.value = active.id;
+      toggle.setAttribute('aria-pressed', String(enabled));
+      toggle.setAttribute('aria-label', enabled ? '关闭字幕' : '开启字幕');
+      toggle.textContent = enabled ? '字幕已开启' : '字幕已关闭';
+      write('learning-site:subtitles', {enabled: enabled, language: select.value});
+    });
+    control.appendChild(toggle);
+    control.appendChild(select);
+    pane.appendChild(control);
+    sync(Boolean(preference.enabled), false);
+  }
+
   /* ==================== lesson page ==================== */
 
   function initLesson() {
@@ -378,6 +448,7 @@
     var current = 0;
     var following = true;
     var mode = 'notes';
+    var noteLanguage = read('learning-site:note-language', 'zh');
     var activeIndex = -1;
     var lastFollowKey = '';
     var lastSavedSlot = -1;
@@ -479,7 +550,7 @@
       v.id = 'video';
       v.controls = true;
       v.playsInline = true;
-      v.preload = 'metadata';
+      v.preload = 'auto';
       v.width = 1280;
       v.height = 720;
       v.setAttribute('aria-label', lesson.title);
@@ -502,6 +573,7 @@
       time.appendChild(el('span', null, '/ ' + format(lesson.duration)));
       caption.appendChild(time);
       pane.appendChild(caption);
+      attachSubtitles(v, lesson, pane);
 
       var chapterHeading = el('div', 'chapter-heading');
       chapterHeading.appendChild(el('h2', null, '内容章节'));
@@ -602,6 +674,27 @@
       tabs.appendChild(bNotes);
       tabs.appendChild(bCues);
       toolbar.appendChild(tabs);
+      var languages = el('select', 'note-language');
+      languages.setAttribute('aria-label', '图文笔记语言');
+      var chinese = el('option', null, '中文'); chinese.value = 'zh'; languages.appendChild(chinese);
+      Object.keys(lesson.notes || {}).forEach(function (key) {
+        var option = el('option', null, lesson.notes[key].label || key);
+        option.value = key; languages.appendChild(option);
+      });
+      if (noteLanguage !== 'zh' && !(lesson.notes || {})[noteLanguage]) noteLanguage = 'zh';
+      languages.value = noteLanguage;
+      languages.hidden = !Object.keys(lesson.notes || {}).length;
+      languages.addEventListener('change', function () {
+        noteLanguage = languages.value;
+        write('learning-site:note-language', noteLanguage);
+        var scroll = $('#reading');
+        var previous = scroll.scrollTop;
+        scroll.replaceChildren(renderArticleBody());
+        setMode(mode);
+        if (!following) scroll.scrollTop = previous;
+      });
+      toolbar.appendChild(languages);
+
 
       var follow = el('label', 'follow-control');
       var cb = el('input');
@@ -658,20 +751,24 @@
 
     function renderArticleBody() {
       var body = el('div', 'article-body');
+      var translation = (lesson.notes || {})[noteLanguage];
+      body.lang = noteLanguage;
+      var summary = translation ? translation.summary : lesson.summary;
 
       var intro = el('div', 'reading-intro');
       intro.appendChild(el('span', 'eyebrow', 'WATCH · READ · PRACTICE'));
       intro.appendChild(el('p', null, '让每一次实践，都可以被重新学习。'));
       body.appendChild(intro);
 
-      if (lesson.summary) {
+      if (summary) {
         var sum = el('div', 'lesson-summary');
         sum.appendChild(el('strong', null, '内容摘要'));
-        sum.appendChild(el('p', null, lesson.summary));
+        sum.appendChild(el('p', null, summary));
         body.appendChild(sum);
       }
 
       (lesson.scenes || []).forEach(function (scene, i) {
+        if (translation && translation.scenes[i]) scene = Object.assign({}, scene, translation.scenes[i]);
         var sec = el('article', 'scene');
         sec.id = 'scene-' + i;
 
