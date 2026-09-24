@@ -17,7 +17,7 @@
 
 ![真实课程页面：左边是视频、全片总结和章节，右边是可点击回看的图文笔记](docs/images/watch-and-read.jpg)
 
-*实际运行截图。Figma 课程视频文件仅保存在本机，仓库提供文章数据和原视频链接。*
+
 
 ## 快速开始
 
@@ -35,7 +35,7 @@ npx skills add chenzixin1/watchless-library --skill watchless-library
 npx skills add chenzixin1/watchless-library --skill watchless-library -g -a codex -y
 ```
 
-安装方式使用 [Skills CLI](https://github.com/vercel-labs/skills)。私有仓库需要你的 GitHub 账号拥有访问权限，并已配置 Git 身份验证。
+安装方式使用 [Skills CLI](https://github.com/vercel-labs/skills)。
 
 ### 2. 给 AI 一个视频
 
@@ -61,7 +61,7 @@ npx skills add chenzixin1/watchless-library --skill watchless-library -g -a code
 
 首次处理时，让 AI 按 Skill 检查并准备运行环境。安装 Skill 后，仍需完成 Python、视频工具与所选转录服务的配置，详见[加入自己的视频](#加入自己的视频)。
 
-**音频转文字支持腾讯云、火山引擎和本地 Whisper 三种方案。** 可以根据已有账号、音频隐私要求和本机硬件选择，详见[音频转文字：选择适合你的方案](#音频转文字选择适合你的方案)。
+**音频转文字支持腾讯云、火山引擎和本地 Whisper 三种方案。**  其中， Whisper 不需要申请 API Key。 可以根据已有账号、音频隐私要求和本机硬件选择，详见[音频转文字：选择适合你的方案](#音频转文字选择适合你的方案)。
 
 **以后只需继续发视频，知识库就会继续积累。**
 
