@@ -22,3 +22,8 @@ workspaces/
 
 # Packaging output
 dist/*.zip
+
+# Locally ingested videos kept out of this repository
+site/media/figma-astra-flight-design/video.mp4
+site/media/jev-diogo-interview/video.mp4
+site/media/xiaolin-war-economy/video.mp4

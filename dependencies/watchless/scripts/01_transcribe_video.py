@@ -528,6 +528,8 @@ class LocalWhisperTranscriber(AudioTranscriber):
             verbose=False,
             fp16=False,
             temperature=0,
+            # Avoid feeding a mistaken phrase back into all subsequent windows.
+            condition_on_previous_text=False,
         )
         utterances = []
         if show_utterances:

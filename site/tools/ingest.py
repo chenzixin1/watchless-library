@@ -40,6 +40,8 @@ WHO_RE = re.compile(r"^(.{1,24}?)[：:]\s*(.+)$", re.S)
 ROLE_RE = re.compile(r"^(.*?)\s*[（(]([^）)]*)[）)]\s*$", re.S)
 CUE_RE = re.compile(r"^\[(\d+(?:\.\d+)?)s\s*-\s*(\d+(?:\.\d+)?)s\]\s*(.*)$")
 LESSON_ID_RE = re.compile(r"^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$")
+EMPHASIS_RE = re.compile(r"\*\*[^*\n]{2,160}\*\*")
+SPEAKER_PREFIX_RE = re.compile(r"^\*\*[^*\n]{1,32}\*\*[：:]\s*")
 
 
 def validate_lesson_id(value: str) -> str:
@@ -98,6 +100,8 @@ def split_speaker(text: str, speakers: dict, known_names: set) -> dict:
     if not m:
         return {"text": text}
     head, body = m.group(1).strip(), m.group(2).strip()
+    if head.startswith("**") and head.endswith("**"):
+        head = head[2:-2].strip()
     if not body or len(head) > 24:
         return {"text": text}
 
@@ -109,7 +113,7 @@ def split_speaker(text: str, speakers: dict, known_names: set) -> dict:
         r = ROLE_RE.match(head)
         if r and r.group(1).strip():
             name, role = r.group(1).strip(), r.group(2).strip()
-        elif head in known_names or re.fullmatch(r"[A-Za-z][A-Za-z .\-']{1,22}", head):
+        elif head in known_names or head in {"主持人", "嘉宾", "旁白", "Host", "Guest"} or re.fullmatch(r"说话人\d+", head) or re.fullmatch(r"[A-Za-z][A-Za-z .\-']{1,22}", head):
             name = head
 
     if not name:
@@ -119,6 +123,11 @@ def split_speaker(text: str, speakers: dict, known_names: set) -> dict:
     if role:
         block["role"] = role
     return block
+
+
+def has_content_emphasis(text: str) -> bool:
+    """A bold speaker name is a label, not a highlighted fact or viewpoint."""
+    return bool(EMPHASIS_RE.search(SPEAKER_PREFIX_RE.sub("", text)))
 
 
 def parse_note(path: Path) -> dict:
@@ -388,6 +397,67 @@ def validate_localization(data: dict, scene_count: int) -> None:
                 raise ValueError("字幕时间范围异常")
 
 
+def validate_delivery(work: Path, manifest: dict, localization: dict | None, requirements: dict) -> None:
+    """Check explicitly requested deliverables before mutating the library."""
+    scenes = manifest.get("scenes", [])
+    if not scenes:
+        raise ValueError("交付检查：缺少章节")
+    if requirements.get("complete_notes"):
+        for scene in scenes:
+            path = work / "codex-notes" / f"scene_{int(scene['id']):03d}.md"
+            note = parse_note(path) if path.is_file() else {}
+            if not all(note.get(k) for k in ("title", "dialogue", "visual")):
+                raise ValueError(f"交付检查：图文笔记不完整：{path.name}")
+    if requirements.get("require_emphasis"):
+        for scene in scenes:
+            path = work / "codex-notes" / f"scene_{int(scene['id']):03d}.md"
+            note = parse_note(path) if path.is_file() else {}
+            if not any(has_content_emphasis(text) for text in note.get("dialogue", [])):
+                raise ValueError(f"交付检查：图文笔记缺少关键内容加粗：{path.name}")
+    if requirements.get("require_speaker_labels") and manifest.get("mode", {}).get("selected") == "conversation":
+        for scene in scenes:
+            path = work / "codex-notes" / f"scene_{int(scene['id']):03d}.md"
+            note = parse_note(path) if path.is_file() else {}
+            if not any(SPEAKER_PREFIX_RE.match(paragraph) for paragraph in note.get("dialogue", [])):
+                raise ValueError(f"交付检查：访谈笔记第 {scene['id']} 章缺少说话人标签")
+    data = localization or {}
+    validate_localization(data, len(scenes))
+    for language in requirements.get("note_languages", []):
+        if language == "zh":  # Chinese primary notes live in codex-notes.
+            continue
+        variant = data.get("notes", {}).get(language)
+        if not variant or any(not s.get("paragraphs") for s in variant["scenes"]):
+            raise ValueError(f"交付检查：缺少 {language} 图文笔记")
+        if requirements.get("require_emphasis"):
+            for index, scene in enumerate(variant["scenes"], 1):
+                if not any(has_content_emphasis(p.get("text", "")) for p in scene["paragraphs"]):
+                    raise ValueError(f"交付检查：{language} 第 {index} 章笔记缺少关键内容加粗")
+    tracks = {t["id"]: t["cues"] for t in data.get("subtitles", [])}
+    for track_id in requirements.get("subtitle_tracks", []):
+        if not tracks.get(track_id) or any(not c["text"].strip() for c in tracks[track_id]):
+            raise ValueError(f"交付检查：缺少或空白字幕轨道 {track_id}")
+        cues = tracks[track_id]
+        if any(b["start"] < a["start"] for a, b in zip(cues, cues[1:])):
+            raise ValueError("交付检查：字幕未按时间排序")
+        state_path = work / "run-state.json"
+        if state_path.is_file():
+            state = json.loads(state_path.read_text())
+            original = parse_cues(Path(state["transcript"]), {})
+            if original and (cues[0]["start"] > original[0]["start"] + 1 or cues[-1]["end"] < original[-1]["end"] - 1):
+                raise ValueError("交付检查：字幕未覆盖完整转录")
+    if set(requirements.get("subtitle_tracks", [])) >= {"en", "zh", "bilingual"}:
+        en, zh, both = (tracks[k] for k in ("en", "zh", "bilingual"))
+        if not len(en) == len(zh) == len(both):
+            raise ValueError("交付检查：三种字幕数量不一致")
+        for a, b, c in zip(en, zh, both):
+            if any((x["start"], x["end"]) != (a["start"], a["end"]) for x in (b, c)):
+                raise ValueError("交付检查：字幕时间轴未对齐")
+            if not re.search(r"[\u4e00-\u9fff]", b["text"]) or b["text"] == a["text"]:
+                raise ValueError("交付检查：中文轨道没有有效译文")
+            if c["text"] != b["text"] + "\n" + a["text"]:
+                raise ValueError("交付检查：双语字幕须包含对应中英文两行")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="把 Watchless 项目导入学习站")
     ap.add_argument("project", help="Watchless 项目目录（含 work/ 与 share/）")
@@ -402,6 +472,7 @@ def main() -> None:
     ap.add_argument("--site")
     ap.add_argument("--video", default="auto", choices=["auto", "copy", "transcode", "skip"])
     ap.add_argument("--link", action="store_true")
+    ap.add_argument("--require-bilingual-subtitles", action="store_true")
     args = ap.parse_args()
 
     project = Path(args.project).expanduser().resolve()
@@ -488,6 +559,11 @@ def main() -> None:
         else:
             source = "本地视频"
 
+    requirements_path = work / "delivery-requirements.json"
+    requirements = json.loads(requirements_path.read_text()) if requirements_path.exists() else {}
+    if args.require_bilingual_subtitles:
+        requirements["subtitle_tracks"] = ["en", "zh", "bilingual"]
+
     # ---------- 组装 scenes ----------
     kf_dir = work / "keyframes"
     notes_dir = work / "codex-notes"
@@ -548,6 +624,9 @@ def main() -> None:
             signature = lambda rows: [(row.get("start"), row.get("end"), row.get("title")) for row in rows]
             if signature(previous_scenes) != signature(scenes):
                 raise ValueError("章节已变化，请重新生成 work/localization.json 后再入库")
+
+    if requirements:
+        validate_delivery(work, manifest, localization, requirements)
 
     # ---------- 拷贝媒体 ----------
     media_dir = site / "media" / lesson_id

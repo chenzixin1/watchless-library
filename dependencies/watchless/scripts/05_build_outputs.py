@@ -20,6 +20,12 @@ from video_notes_common import emit_progress, format_timestamp, make_contact_she
 
 
 NOTE_SECTION_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
+SPEAKER_LABEL_RE = re.compile(r"(<p>)<strong>([^<>\n]{1,32})</strong>(\s*[：:])")
+
+
+def mark_speaker_labels(html: str) -> str:
+    """Underline only bold labels at the start of a dialogue paragraph."""
+    return SPEAKER_LABEL_RE.sub(r'\1<strong class="speaker-label">\2</strong>\3', html)
 
 
 def _scene_time(scene: dict[str, Any]) -> str:
@@ -107,6 +113,7 @@ h2 { margin-top: 2.5em; border-left: 5px solid #e66b23; padding-left: .7em; brea
 h3 { margin-top: 1.5em; margin-bottom: .5em; color: #46515d; break-after: avoid; }
 img { display:block; width:100%; height:auto; margin: 1em auto; box-shadow: 0 8px 28px rgba(0,0,0,.16); break-inside: avoid; }
 p { font-size: 1.05rem; }
+strong.speaker-label { text-decoration: underline; text-underline-offset: .18em; text-decoration-thickness: 1px; }
 @media print { body { max-width: none; padding: 0; } h2 { break-before: page; } h2, h3, img { break-inside: avoid; } }
 </style>"""
     return style + "\n\n" + text
@@ -157,6 +164,7 @@ def build_share(manifest_path: Path, notes_dir: Path, output_root: Path, no_zip:
          "--include-in-header", str(style_path), "--standalone", "--metadata", f"pagetitle={title}", "-o", str(html_path)],
         check=True,
     )
+    html_path.write_text(mark_speaker_labels(html_path.read_text(encoding="utf-8")), encoding="utf-8")
     emit_progress("html", "complete", output=str(html_path))
 
     pdf_path = share / f"{safe_name}-visual-explainer.pdf"

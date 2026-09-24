@@ -22,6 +22,16 @@
     if (text != null) n.textContent = text;
     return n;
   }
+  function appendEmphasis(parent, value) {
+    String(value || '').split(/(\*\*[^*\n]+\*\*)/g).forEach(function (part) {
+      if (!part) return;
+      if (part.startsWith('**') && part.endsWith('**')) {
+        parent.appendChild(el('strong', null, part.slice(2, -2)));
+      } else {
+        parent.appendChild(document.createTextNode(part));
+      }
+    });
+  }
   function pad(n) { return String(n).padStart(2, '0'); }
   function format(t) {
     t = Math.max(0, Math.floor(Number(t) || 0));
@@ -80,51 +90,20 @@
     mount.appendChild(page);
   }
 
-  function renderTopbar(activePage, query) {
+  function renderTopbar(activePage, title) {
     var bar = el('header', 'topbar');
     var brand = el('a', 'brand');
     brand.href = './index.html';
-    var brandName = (window.__SITE__ && window.__SITE__.brand) || 'Watchless 知识库';
-    if (brandName === 'Watchless 知识库') {
-      brand.appendChild(el('span', 'brand-wordmark', 'Watchless'));
-      brand.appendChild(el('span', 'brand-descriptor', '知识库'));
-    } else {
-      brand.appendChild(el('span', 'brand-wordmark', brandName));
-    }
+    brand.setAttribute('aria-label', 'Watchless Lib，返回文章目录');
+    brand.appendChild(el('span', 'brand-wordmark', 'Watchless Lib'));
     bar.appendChild(brand);
-
-    var nav = el('nav', 'global-nav');
-    var bArchive = el('button', activePage === 'archive' ? 'active' : null, '目录');
-    bArchive.addEventListener('click', function () { location.href = './index.html'; });
-    nav.appendChild(bArchive);
+    bar.appendChild(el('span', 'topbar-separator', '/'));
+    bar.appendChild(el('span', 'topbar-current', activePage === 'archive' ? '文章目录' : title));
     if (activePage === 'lesson') {
-      var bNow = el('button', 'active', '当前阅读');
-      nav.appendChild(bNow);
+      var back = el('a', 'topbar-action', '返回目录');
+      back.href = './index.html';
+      bar.appendChild(back);
     }
-    bar.appendChild(nav);
-
-    var tools = el('div', 'header-tools');
-    if (activePage === 'archive') {
-      var form = el('form', 'header-search');
-      var input = el('input');
-      input.type = 'search';
-      input.placeholder = '搜索视频';
-      input.value = query || '';
-      input.setAttribute('aria-label', '搜索视频');
-      form.appendChild(input);
-      var btn = el('button', null, '\u2315');
-      btn.type = 'submit';
-      btn.setAttribute('aria-label', '搜索');
-      form.appendChild(btn);
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        location.hash = '';
-        var val = input.value.trim();
-        location.search = val ? '?q=' + encodeURIComponent(val) : '';
-      });
-      tools.appendChild(form);
-    }
-    bar.appendChild(tools);
     document.body.insertBefore(bar, document.body.firstChild);
   }
 
@@ -141,8 +120,8 @@
     loadScript('data/catalog.js', '__CATALOG__').then(function (data) {
       catalog = (data && data.lessons) || [];
       window.__SITE__ = (data && data.site) || {};
-      document.title = (window.__SITE__.brand || 'Watchless 知识库') + ' · 学习视频';
-      renderTopbar('archive', query);
+      document.title = '文章目录 · watchless';
+      renderTopbar('archive');
       render();
     }).catch(function (err) {
       statePage(mount, '还没有学习视频',
@@ -170,7 +149,9 @@
       mount.innerHTML = '';
       var page = el('div', 'archive');
       page.appendChild(renderIntro());
-      page.appendChild(renderMonthNav());
+      if (month || new Set(catalog.map(function (x) { return x.month; })).size > 1) {
+        page.appendChild(renderMonthNav());
+      }
       page.appendChild(renderBody());
       mount.appendChild(page);
     }
@@ -178,9 +159,9 @@
     function renderIntro() {
       var intro = el('section', 'archive-intro');
       var left = el('div');
-      left.appendChild(el('span', 'eyebrow', '边看边读'));
-      left.appendChild(el('h1', null, '学习视频'));
-      left.appendChild(el('p', null, '学习视频和配套笔记，点开任意一条即可边看边读'));
+      left.appendChild(el('span', 'eyebrow', 'WATCHLESS / 视频与图文，一起读'));
+      left.appendChild(el('h1', null, '少看一点，理解更多。'));
+      left.appendChild(el('p', null, '每条视频都整理成可回听的图文文章。打开一篇，左边看现场，右边读重点。'));
       intro.appendChild(left);
 
       var totalSeconds = catalog.reduce(function (s, x) { return s + (Number(x.duration) || 0); }, 0);
@@ -202,7 +183,7 @@
     function renderMonthNav() {
       var nav = el('nav', 'month-nav');
       nav.setAttribute('aria-label', '月份导航');
-      nav.appendChild(el('span', 'eyebrow', '视频目录'));
+      nav.appendChild(el('span', 'eyebrow', '按月份浏览'));
 
       var counts = {};
       catalog.forEach(function (x) { counts[x.month] = (counts[x.month] || 0) + 1; });
@@ -238,8 +219,8 @@
 
       var tools = el('div', 'archive-tools');
       var head = el('div');
-      head.appendChild(el('h2', null, month ? monthLabel(month) : '全部视频'));
-      head.appendChild(el('span', null, list.length + ' 条视频'));
+      head.appendChild(el('h2', null, month ? monthLabel(month) : '全部文章'));
+      head.appendChild(el('span', null, list.length + ' 篇'));
       tools.appendChild(head);
 
       var search = el('label', 'tool-search');
@@ -319,19 +300,23 @@
         write(K_LAST, item.id);
         location.href = './lesson.html?id=' + encodeURIComponent(item.id);
       });
-      row.appendChild(el('span', 'row-order', pad(item.order || 0)));
+      if (item.poster) {
+        var poster = el('img', 'row-poster');
+        poster.src = item.poster;
+        poster.alt = '';
+        poster.loading = 'lazy';
+        row.appendChild(poster);
+      }
 
       var main = el('div', 'row-main');
+      main.appendChild(el('span', 'row-kicker', (item.source || '视频') + ' · ' + format(item.duration)));
       main.appendChild(el('h4', null, item.title));
       var meta = el('p');
       meta.appendChild(document.createTextNode(item.speaker || '讲者未记录'));
-      meta.appendChild(el('span', null, (item.sceneCount || 0) + ' 章节 · 图文笔记'));
+      meta.appendChild(el('span', null, (item.sceneCount || 0) + ' 章 · ' + (item.date || '')));
       main.appendChild(meta);
       row.appendChild(main);
-
-      row.appendChild(el('time', null, format(item.duration)));
-      var open = el('span', 'row-open', '展开阅读');
-      open.appendChild(el('span', null, '\u2197'));
+      var open = el('span', 'row-open', '打开图文阅读 \u2192');
       row.appendChild(open);
       return row;
     }
@@ -453,11 +438,11 @@
     var lastFollowKey = '';
     var lastSavedSlot = -1;
     var pendingTime = 0;
+    var readingStarted = false;
 
     loadScript('data/catalog.js', '__CATALOG__').then(function (data) {
       catalogData = data || { site: {}, lessons: [] };
       window.__SITE__ = catalogData.site || {};
-      renderTopbar('lesson', '');
       var found = (catalogData.lessons || []).find(function (x) { return x.id === id; });
       if (!found) {
         found = (catalogData.lessons || []).slice().sort(function (a, b) {
@@ -474,6 +459,7 @@
       if (!data) return;
       lesson = data;
       write(K_LAST, lesson.id);
+      renderTopbar('lesson', lesson.title);
       document.title = lesson.title + ' · ' + ((window.__SITE__ && window.__SITE__.brand) || 'Watchless 知识库');
       renderLesson();
     }).catch(function (err) {
@@ -482,8 +468,6 @@
 
     function renderLesson() {
       mount.innerHTML = '';
-      mount.appendChild(renderHeading());
-
       var workspace = el('div', 'workspace');
       workspace.id = 'workspace';
       var savedSplit = Number(read(K_SPLIT, 51));
@@ -499,50 +483,7 @@
       bindVideo();
 
       pendingTime = clamp(Number(read(K_PROGRESS + lesson.id, 0)) || 0, 0, Math.max(0, (lesson.duration || 1) - 1));
-      updateActive(true);
-    }
-
-    function renderHeading() {
-      var head = el('div', 'lesson-heading');
-
-      var crumb = el('div', 'breadcrumb');
-      var back = el('button', null, '全部视频');
-      back.addEventListener('click', function () { location.href = './index.html'; });
-      crumb.appendChild(back);
-      crumb.appendChild(el('span', null, '/'));
-      crumb.appendChild(el('span', null, monthLabel(lesson.month)));
-      crumb.appendChild(el('span', 'heading-date', lesson.date || ''));
-      head.appendChild(crumb);
-
-      var titleLine = el('div', 'title-line');
-      titleLine.appendChild(el('h1', null, lesson.title));
-      var browse = el('button', 'browse-button');
-      browse.appendChild(el('span', null, '\u2637'));
-      browse.appendChild(document.createTextNode(' 切换视频'));
-      browse.addEventListener('click', function () { location.href = './index.html'; });
-      titleLine.appendChild(browse);
-      head.appendChild(titleLine);
-
-      var byline = el('div', 'byline');
-      byline.appendChild(el('span', null, lesson.speaker || '讲者未记录'));
-      byline.appendChild(el('span', 'dot', '\u00b7'));
-      byline.appendChild(el('span', null, format(lesson.duration) + ' 视频'));
-      byline.appendChild(el('span', 'dot', '\u00b7'));
-      byline.appendChild(el('span', null, (lesson.scenes || []).length + ' 个章节'));
-      var sourceUrl;
-      try {
-        var parsedSource = new URL(lesson.sourceUrl);
-        if (/^https?:$/.test(parsedSource.protocol)) sourceUrl = parsedSource.href;
-      } catch (e) {}
-      if (sourceUrl) {
-        var link = el('a', null, (lesson.source || '原始视频') + ' \u2197');
-        link.href = sourceUrl;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        byline.appendChild(link);
-      }
-      head.appendChild(byline);
-      return head;
+      syncFollowUI();
     }
 
     function renderWatchPane() {
@@ -580,8 +521,25 @@
       pane.appendChild(caption);
       attachSubtitles(v, lesson, pane);
 
+      var info = el('div', 'watch-info');
+      info.appendChild(el('span', 'eyebrow', (lesson.source || '原视频') + ' · 边看边读'));
+      info.appendChild(el('h1', null, lesson.title));
+      info.appendChild(el('p', null, (lesson.speaker || '讲者未记录') + ' · ' + format(lesson.duration) + ' · ' + (lesson.scenes || []).length + ' 章'));
+      try {
+        var sourceUrl = new URL(lesson.sourceUrl);
+        if (/^https?:$/.test(sourceUrl.protocol)) {
+          var link = el('a', 'source-link', '打开原视频 \u2197');
+          link.href = sourceUrl.href;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          info.appendChild(link);
+        }
+      } catch (e) {}
+      info.appendChild(el('p', 'watch-instruction', '点击右侧章节或画面，回到视频对应位置。'));
+      pane.appendChild(info);
+
       var chapterHeading = el('div', 'chapter-heading');
-      chapterHeading.appendChild(el('h2', null, '内容章节'));
+      chapterHeading.appendChild(el('h2', null, '章节目录'));
       var counter = el('span');
       counter.id = 'chapter-counter';
       chapterHeading.appendChild(counter);
@@ -761,13 +719,14 @@
       var summary = translation ? translation.summary : lesson.summary;
 
       var intro = el('div', 'reading-intro');
-      intro.appendChild(el('span', 'eyebrow', 'WATCH · READ · PRACTICE'));
-      intro.appendChild(el('p', null, '让每一次实践，都可以被重新学习。'));
+      intro.appendChild(el('span', 'eyebrow', '图文阅读 / ' + (lesson.scenes || []).length + ' 章'));
+      intro.appendChild(el('h1', null, lesson.title));
+      intro.appendChild(el('p', null, '按原视频时间推进，点击段落或画面可回到对应时刻。'));
       body.appendChild(intro);
 
       if (summary) {
         var sum = el('div', 'lesson-summary');
-        sum.appendChild(el('strong', null, '内容摘要'));
+        sum.appendChild(el('strong', null, '文章摘要'));
         sum.appendChild(el('p', null, summary));
         body.appendChild(sum);
       }
@@ -813,7 +772,7 @@
             if (para.role) p.appendChild(el('span', 'role', '（' + para.role + '）'));
             p.appendChild(document.createTextNode('：'));
           }
-          p.appendChild(document.createTextNode(para.text));
+          appendEmphasis(p, para.text);
           p.addEventListener('click', function () {
             if (window.getSelection && window.getSelection().toString().trim()) return;
             seek(scene.start, true);
@@ -872,7 +831,11 @@
         box.appendChild(retry);
         shell.appendChild(box);
       });
-      video.addEventListener('play', function () { setPlaying(true); });
+      video.addEventListener('play', function () {
+        readingStarted = true;
+        setPlaying(true);
+        if (following) scrollToActive(true);
+      });
       video.addEventListener('pause', function () { setPlaying(false); });
       video.addEventListener('timeupdate', function () {
         current = video.currentTime;
@@ -882,11 +845,11 @@
         if (pct && lesson.duration) pct.textContent = Math.min(100, Math.floor(current / lesson.duration * 100)) + '% 已播放';
         var slot = Math.floor(current / 5);
         if (slot !== lastSavedSlot) { write(K_PROGRESS + lesson.id, current); lastSavedSlot = slot; }
-        if (following) scrollToActive(false);
+        if (following && readingStarted) scrollToActive(false);
       });
       video.addEventListener('seeked', function () {
         current = video.currentTime;
-        if (following) scrollToActive(true);
+        if (following && readingStarted) scrollToActive(true);
       });
     }
 
@@ -936,6 +899,7 @@
 
     function seek(t, play) {
       if (!video) return;
+      readingStarted = true;
       var value = clamp(Number(t) || 0, 0, lesson.duration || 0);
       video.currentTime = value;
       current = value;
@@ -992,15 +956,11 @@
       lastFollowKey = key;
       var node = reading.querySelector('#' + key);
       if (!node) return;
+      if (window.matchMedia('(max-width: 900px)').matches) return;
       var top = node.getBoundingClientRect().top - reading.getBoundingClientRect().top + reading.scrollTop - 24;
       reading.scrollTo({ top: Math.max(0, top), behavior: reduced ? 'auto' : 'smooth' });
     }
 
-    function updateActive(force) {
-      activeIndex = -1;
-      scrollToActive(force);
-      syncFollowUI();
-    }
   }
 
   function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }

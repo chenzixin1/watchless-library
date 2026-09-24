@@ -15,6 +15,8 @@ Turn one video into a complete visual article. The transcript is the factual sou
 - Keep the source immutable and reuse cached downloads and transcripts.
 - Use Tencent Cloud word-level ASR with speaker diarization by default (`--provider tencent`; `auto` also selects Tencent). Never automatically fall back to Volcengine; select other providers explicitly. Do not silently replace it with YouTube automatic captions or local Whisper.
 - Keep the output chronological and complete. Light-plus is not a summary: preserve reasoning, examples, figures, caveats, disagreement, questions, answers, and repeated emphasis.
+- In Light-plus, mark important numbers, memorable source quotes, key facts, and key viewpoints with Markdown `**bold**`. Cover the meaningful points in each scene while keeping surrounding text complete; do not bold whole paragraphs, raw transcript dumps, or claims without source support.
+- For dialogue, begin each turn with the verified speaker label in bold, for example `**Host**:` or `**付鹏**：`. The rendered article underlines this label. Preserve anonymous labels when identity is uncertain.
 - Show process images during the run: whole-video route overview, boundary evidence where applicable, candidate frames, selected frames, and PDF page overview.
 - Use no OpenCV anywhere in this Skill.
 - Visual algorithms are route-specific. `slides` uses ffmpeg keyframe recall plus local SSIM refinement. `explainer`, `conversation`, and `demo` do not use SSIM, perceptual hash, histogram scoring, face scoring, or other visual ranking; Codex directly reads their candidate images.
@@ -187,6 +189,8 @@ Record `display_name`, role, confidence, and evidence. `high` requires explicit 
 
 Inspect every referenced image and transcript. Write each requested `work/codex-notes/scene_NNN.md`. Preserve the original order and voice; do not turn dialogue into third-person editorial narration. Visual descriptions must remain factual and useful.
 
+**Formatting checkpoint before finalize:** review every scene's Light-plus text against its transcript. Each scene needs at least one source-supported bold key number, quote, fact, or viewpoint; a bold speaker label does not count. For dialogue, each turn starts with a verified bold speaker label. Keep the colon and following text outside the label. Fix omissions before running finalize.
+
 If the runtime reports actual model usage, append it after each model-heavy phase. Pass current explicit rates only when cost should be calculated:
 
 ```bash
@@ -207,7 +211,7 @@ If the runtime reports actual model usage, append it after each model-heavy phas
   --stage finalize --project-dir "$PROJECT_DIR"
 ```
 
-Finalize automatically writes `verify/quality-audit.json` and `verify/quality-audit.md`. Display `verify/pdf-pages-contact-sheet.jpg`, read the audit, and resolve warnings about transcript coverage, note/frame counts, speaker identity, duplicate exact frames, or missing usage records. Report Markdown, HTML, PDF, ZIP, scene count, image count, page count, recorded tokens, and known cost. Unknown usage remains unknown.
+Finalize automatically writes `verify/quality-audit.json` and `verify/quality-audit.md`. Display `verify/pdf-pages-contact-sheet.jpg`, read the audit, and resolve warnings about transcript coverage, note/frame counts, speaker identity, duplicate exact frames, or missing usage records. Open the generated HTML and verify that speaker labels are bold and underlined, source-supported highlights are bold, and ordinary transcript text is not wholly bold. Report Markdown, HTML, PDF, ZIP, scene count, image count, page count, recorded tokens, and known cost. Unknown usage remains unknown.
 
 ## Fallbacks
 

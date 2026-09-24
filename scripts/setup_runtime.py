@@ -47,7 +47,7 @@ def main() -> int:
         "install",
         "-r",
         str(WATCHLESS / "scripts" / "requirements.txt"),
-        "yt-dlp",
+        "yt-dlp[default]",
         "curl-cffi",
     ])
     run([python, "-m", "pip", "install", "-e", str(VIDEO_USE)])

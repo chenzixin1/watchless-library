@@ -17,6 +17,8 @@ description: 将 YouTube 链接或本地的 PPT、科普、访谈、播客、产
 - 原视频不可变，重复运行必须复用已经下载的视频和转录稿。
 - 默认使用腾讯云词级 ASR 和说话人分离（`--provider tencent`，`auto` 同样选择腾讯）；失败不得自动切换火山，其他通道必须显式指定，不得静默替换成 YouTube 自动字幕或本地 Whisper。
 - 内容必须按原顺序完整保留。Light-plus 不是摘要：保留推理、例子、数字、限定条件、分歧、问答和重复强调。
+- 在 Light-plus 中用 Markdown `**加粗**` 标出有原文依据的关键数字、金句、关键事实和关键观点；覆盖每章真正重要的内容，同时保留上下文。不要整段加粗，也不要给原始转录或无依据的判断加粗。
+- 对话按说话人分段，每轮以 `**主持人**：` 或 `**付鹏**：` 这样的标签开头；文章显示时再给标签加下划线。身份不确定时沿用匿名标签，不猜测人名。
 - 运行过程中展示全片路由概览、边界证据、候选帧、最终帧和 PDF 页面概览。
 - 本 Skill 任何路径都不使用 OpenCV。
 - 视觉算法只能按路径使用：`slides` 使用 ffmpeg 关键帧召回和局部 SSIM 精修；`explainer`、`conversation`、`demo` 不使用 SSIM、感知哈希、直方图、人物评分或其他视觉排序算法，由 Codex 直接读取候选图。
@@ -189,6 +191,8 @@ Slides 不走语义时间线。如果 PPT 只占画面的一部分，直接查�
 
 逐张查看图片和转录稿，严格生成要求的 `work/codex-notes/scene_NNN.md`。保持原始顺序和说话方式，不把对话改写成第三人称文章。画面描述只写有用且可见的事实。
 
+**Finalize 前的排版检查点**：逐章对照转录，确认 Light-plus 至少有一处有原文依据的关键数字、金句、事实或观点加粗；加粗的说话人姓名不能充当正文重点。对话逐轮确认说话人标签已核实且加粗，冒号和后面的正文不属于姓名标签。缺项先补齐再继续。
+
 运行时能够报告真实模型用量时，在每个高 Token 阶段后追加记录。只有提供当前明确费率时才计算成本：
 
 ```bash
@@ -209,7 +213,7 @@ Slides 不走语义时间线。如果 PPT 只占画面的一部分，直接查�
   --stage finalize --project-dir "$PROJECT_DIR"
 ```
 
-Finalize 会自动生成 `verify/quality-audit.json` 和 `verify/quality-audit.md`。展示 `verify/pdf-pages-contact-sheet.jpg`，读取审计结果，处理转录覆盖、笔记/截图数量、说话人、字节级重复帧和用量记录警告。最后报告 Markdown、HTML、PDF、ZIP、场景数、图片数、页数、已记录 Token 和已知成本；未知用量必须保持未知。
+Finalize 会自动生成 `verify/quality-audit.json` 和 `verify/quality-audit.md`。展示 `verify/pdf-pages-contact-sheet.jpg`，读取审计结果，处理转录覆盖、笔记/截图数量、说话人、字节级重复帧和用量记录警告。打开生成的 HTML，确认说话人姓名为粗体加下划线、正文重点为粗体、普通转录没有整段加粗。最后报告 Markdown、HTML、PDF、ZIP、场景数、图片数、页数、已记录 Token 和已知成本；未知用量必须保持未知。
 
 ## 回退策略
 

@@ -15,6 +15,15 @@ def load_module():
     return module
 
 
+def test_speaker_labels_are_underlined_without_changing_key_facts():
+    module = load_module()
+    html = '<p><strong>付鹏</strong>：观点 <strong>21%</strong></p><p><strong>关键事实</strong>在此。</p>'
+    result = module.mark_speaker_labels(html)
+    assert '<strong class="speaker-label">付鹏</strong>：' in result
+    assert '<strong>21%</strong>' in result
+    assert '<strong>关键事实</strong>' in result
+
+
 def test_build_markdown_keeps_one_image_and_text_block_per_scene(tmp_path):
     module = load_module()
     image = tmp_path / "frame.png"

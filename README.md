@@ -228,6 +228,8 @@ python3 scripts/ingest.py "/path/to/watchless-project" \
 
 新增课程只更新目录、课程数据和对应媒体文件。`index.html`、`lesson.html`、`assets/site.css` 和 `assets/site.js` 作为统一外壳复用。
 
+Figma Astra、Jev 访谈和小 Lin 战争经济这三篇课程的视频文件仅保存在本机，没有提交到仓库。克隆仓库后仍可阅读文章、查看截图和语言数据；如需在站内播放视频，请自行将对应的 `video.mp4` 放入 `site/media/<课程 id>/`，或使用课程页的原视频链接。
+
 </details>
 
 ## 使用说明
