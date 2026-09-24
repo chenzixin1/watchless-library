@@ -1,0 +1,39 @@
+{
+  "points": [
+    {
+      "scenes": [
+        1
+      ],
+      "zh": "Figma 希望智能体既能在产品内工作，也能从外部工作流调用 Figma；演示从一份驾驶舱原型展开。",
+      "en": "Figma wants agents to work both inside its product and from external workflows; the demo begins with a cockpit prototype."
+    },
+    {
+      "scenes": [
+        2
+      ],
+      "zh": "嘉宾认为 Astra 会先理解任务、形成自己的判断；执行途中仍可接受新的指导和方向调整。",
+      "en": "The guest says Astra first takes time to understand a task, then forms a plan that can still be redirected during execution."
+    },
+    {
+      "scenes": [
+        3
+      ],
+      "zh": "以单人直升机的短途飞行为题，模型从几百个 token 的要求出发，用约两小时做出跨多个屏幕的高保真体验原型。",
+      "en": "Given a short-distance, single-person helicopter brief, the model reportedly built a high-fidelity, multi-screen prototype in about two hours from a few hundred tokens."
+    },
+    {
+      "scenes": [
+        4
+      ],
+      "zh": "演示的重点不只是生成单个画面，还包括先规划设计系统、复用组件，并让多个界面形成连贯的用户旅程。",
+      "en": "The notable result is more than a single screen: the model plans a design system, uses components consistently, and connects screens into a user journey."
+    },
+    {
+      "scenes": [
+        5
+      ],
+      "zh": "嘉宾希望把模型进一步用于从需求探索、原型表达，到提前验证高风险技术问题的完整产品流程。",
+      "en": "The guest hopes to use the model across product development, from exploring a rough brief and making prototypes to validating risky technical ideas early."
+    }
+  ]
+}

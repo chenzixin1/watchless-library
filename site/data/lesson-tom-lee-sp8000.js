@@ -9,6 +9,57 @@ window.__LESSON__ = {
   "month": "2026-09",
   "duration": 571.17,
   "summary": "Tom Lee 与 Jay Woods 讨论股市反弹、油价与债券收益率回落、科技股领涨和市场广度不足，并分析加密货币走势及中期选举的不确定性。",
+  "videoSummary": [
+   {
+    "scenes": [
+     1,
+     2
+    ],
+    "zh": "Tom Lee 将市场急涨与油价、债券收益率回落及此前低迷的情绪联系起来，同时提醒柴油价格仍是风险。",
+    "en": "Tom Lee links the sharp rally to lower oil prices, easing bond yields, and depressed sentiment, while still flagging diesel prices as a risk."
+   },
+   {
+    "scenes": [
+     3,
+     4,
+     5
+    ],
+    "zh": "AI 相关股票重新领涨；Jay Woods 从技术图形讨论标普 7600 一带的拉扯，并将美光财报视为检验走势的事件。",
+    "en": "AI-related stocks regain leadership; Jay Woods studies the S&P 500 around 7,600 and points to Micron's earnings as a test of the move."
+   },
+   {
+    "scenes": [
+     6,
+     7
+    ],
+    "zh": "Tom Lee 在情绪低迷的背景下提出月末标普 8000 的乐观判断，并讨论 AI 股空间及加密货币相对股市的领先迹象；这些都是嘉宾预测。",
+    "en": "Against weak sentiment, Tom Lee argues for a possible S&P 500 level of 8,000 by month-end and discusses AI upside and crypto's lead over equities; these are his forecasts."
+   },
+   {
+    "scenes": [
+     8,
+     9
+    ],
+    "zh": "科技仍是两位嘉宾关注的主战场，但市场上涨的广度有限；访谈随后转向比特币与加密货币是否已走出低迷。",
+    "en": "Technology remains the main focus, but the rally's breadth is thin; the conversation then turns to Bitcoin and whether crypto has emerged from its downturn."
+   },
+   {
+    "scenes": [
+     10,
+     11
+    ],
+    "zh": "Tom Lee 从“坏消息中仍能上涨”判断加密市场可能筑底，并讨论中期选举、分裂政府和预测市场监管的不确定性。",
+    "en": "Tom Lee sees crypto's resilience to bad news as a possible bottoming signal and discusses midterm elections, divided government, and prediction-market regulation."
+   },
+   {
+    "scenes": [
+     12,
+     13
+    ],
+    "zh": "Jay Woods 认为政治僵局可能有利于市场；收尾时嘉宾继续表达对年末行情和比特币走势的乐观看法。",
+    "en": "Jay Woods suggests political gridlock may favor markets; the guests close with optimistic views on year-end equities and Bitcoin."
+   }
+  ],
   "video": "media/tom-lee-sp8000/video.mp4",
   "poster": "media/tom-lee-sp8000/poster.jpg",
   "tags": [

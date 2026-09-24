@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import sys
 
-from ingest import has_content_emphasis, load_catalog, load_speakers, parse_cues, parse_note, split_speaker, validate_delivery, validate_lesson_id
+from ingest import PLAIN_ROLE_LABEL_RE, has_content_emphasis, load_catalog, load_speakers, parse_cues, parse_note, split_speaker, validate_delivery, validate_lesson_id, validate_video_summary
 
 
 def read(path):
@@ -21,7 +21,19 @@ def js_data(path):
     return json.loads(match.group(1))
 
 
+def validate_speaker_label_samples(evidence, lesson):
+    speakers = {p['speaker'] for scene in lesson['scenes'] for p in scene.get('paragraphs', []) if p.get('speaker') and not p.get('role')}
+    target_labels = {f'{name}：' for name in ('主持人问', '嘉宾回答') if name in speakers}
+    if not target_labels and speakers:
+        target_labels = {next(iter(sorted(speakers))) + '：'}
+    samples = evidence.get('speaker_label_samples', [])
+    for label in target_labels:
+        assert any(sample.get('text') == label and str(sample.get('font_weight', '')) in ('700', '800', '900') and 'underline' in sample.get('text_decoration_line', '') for sample in samples), f'{label} 缺少包含冒号的粗体加下划线浏览器验收记录'
+
+
 def inspect(project, site, lesson_id):
+    project = Path(project).resolve()
+    site = Path(site).resolve()
     work = project / 'work'
     req = read(work / 'delivery-requirements.json')
     results = []
@@ -59,6 +71,16 @@ def inspect(project, site, lesson_id):
             assert Path(scene['frame_path']).is_file(), '关键帧文件缺失'
     def content():
         validate_delivery(work, read(work / 'scene-manifest.json'), read(work / 'localization.json'), req)
+    def video_summary():
+        path = work / 'video-summary.json'
+        if not path.is_file():
+            path = site / 'media' / lesson_id / 'video-summary.json'
+        assert path.is_file(), '缺少视频总结文件'
+        source = read(path)
+        manifest = read(work / 'scene-manifest.json')
+        validate_video_summary(source, manifest['scenes'], req.get('note_languages', ['zh']))
+        lesson = js_data(site / 'data' / f'lesson-{lesson_id}.js')
+        assert lesson.get('videoSummary') == source['points'], '入库视频总结与源文件不一致'
     def emphasis():
         if not req.get('require_emphasis'):
             return
@@ -77,7 +99,8 @@ def inspect(project, site, lesson_id):
             return
         lesson = js_data(site / 'data' / f'lesson-{lesson_id}.js')
         for scene in lesson['scenes']:
-            assert any(p.get('speaker') for p in scene.get('paragraphs', [])), f"第 {scene['id']} 章没有结构化说话人标签"
+            assert any(p.get('speaker') for p in scene.get('paragraphs', [])), f"第 {scene['no']} 章没有结构化说话人标签"
+            assert not any(PLAIN_ROLE_LABEL_RE.search(p.get('text', '')) for p in scene.get('paragraphs', [])), f"第 {scene['no']} 章仍有普通文字说话人标签"
     def imported():
         catalog = load_catalog(site / 'data/catalog.js')
         rows = catalog.get('lessons', [])
@@ -101,11 +124,11 @@ def inspect(project, site, lesson_id):
             resource = (site / scene['image']).resolve()
             assert resource.is_relative_to(site) and resource.is_file(), '入库图片缺失或越界'
         assert (site / 'media' / lesson_id / 'video.mp4').is_file(), '入库视频缺失'
-    for name, action in [('download', acquisition), ('transcript', transcript), ('scenes', scenes), ('notes_and_subtitles', content), ('emphasis', emphasis), ('ingest', imported), ('speaker_labels', speaker_labels)]:
+    for name, action in [('download', acquisition), ('transcript', transcript), ('scenes', scenes), ('notes_and_subtitles', content), ('video_summary', video_summary), ('emphasis', emphasis), ('ingest', imported), ('speaker_labels', speaker_labels)]:
         check(name, action)
     # Bind manual browser evidence to both source artifacts and delivered files.
     digest = hashlib.sha256()
-    paths = [work / 'delivery-requirements.json', work / 'localization.json', work / 'scene-manifest.json', site / 'data' / f'lesson-{lesson_id}.js', site / 'assets/site.js', site / 'assets/site.css', site / 'lesson.html']
+    paths = [work / 'delivery-requirements.json', work / 'localization.json', work / 'video-summary.json', work / 'scene-manifest.json', site / 'data' / f'lesson-{lesson_id}.js', site / 'media' / lesson_id / 'video-summary.json', site / 'assets/site.js', site / 'assets/site.css', site / 'lesson.html']
     paths += sorted((work / 'codex-notes').glob('*.md'))
     paths += sorted((site / 'media' / lesson_id / 'frames').glob('*.jpg'))
     for path in paths:
@@ -123,6 +146,8 @@ def inspect(project, site, lesson_id):
             required.add('emphasis_visible')
         if req.get('require_speaker_labels') and read(work / 'scene-manifest.json').get('mode', {}).get('selected') == 'conversation':
             required.add('speaker_labels_visible')
+            validate_speaker_label_samples(evidence, js_data(site / 'data' / f'lesson-{lesson_id}.js'))
+        required.add('video_summary_visible')
         assert all(evidence.get('checks', {}).get(k) is True for k in required), '浏览器验收项不完整'
         assert evidence.get('evidence'), '缺少浏览器观察记录'
     check('browser', browser)
@@ -145,7 +170,7 @@ def main():
         req = work / 'delivery-requirements.json'
         if not req.exists():
             catalog = load_catalog(site / 'data/catalog.js')
-            req.write_text(json.dumps({'provider': args.provider, 'complete_notes': True, 'require_emphasis': True, 'require_speaker_labels': True, 'note_languages': ['zh', 'en'], 'subtitle_tracks': ['en', 'zh', 'bilingual'], 'existing_lesson_ids': [r['id'] for r in catalog.get('lessons', [])]}, ensure_ascii=False, indent=2))
+            req.write_text(json.dumps({'provider': args.provider, 'complete_notes': True, 'require_emphasis': True, 'require_speaker_labels': True, 'require_video_summary': True, 'note_languages': ['zh', 'en'], 'subtitle_tracks': ['en', 'zh', 'bilingual'], 'existing_lesson_ids': [r['id'] for r in catalog.get('lessons', [])]}, ensure_ascii=False, indent=2))
     report = inspect(project, site, lesson_id)
     (work / 'delivery-checkpoints.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
     print(json.dumps(report, ensure_ascii=False, indent=2))

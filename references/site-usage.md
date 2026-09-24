@@ -1,108 +1,38 @@
-# AI 实践库 · 学习站
+# Watchless Library 站点目录
 
-把一场分享（视频或链接）变成"边看边读"的学习页：左边视频与章节，右边图文笔记，
-播放时右侧自动跟随，点任意段落回到分享现场。
+这里是可运行的学习站实例。`index.html` 是文章目录，`lesson.html` 展示视频、全片要点、章节与图文笔记。新增视频时由 Watchless Library Skill 处理素材并入库；已有课程会保留。
 
-站点风格是固定的。**新增内容只需要跑一条命令，页面本身不用改。**
+## 本地预览
 
----
-
-## 目录结构
-
-```
-learning-site/
-├── index.html          档案页（固定）
-├── lesson.html         学习页（固定）
-├── assets/
-│   ├── site.css        样式（固定）
-│   └── site.js         逻辑（固定）
-├── data/
-│   ├── catalog.js      目录 ← 每次导入自动更新
-│   └── lesson-<id>.js  单课数据 ← 每次导入自动生成
-├── media/<id>/
-│   ├── video.mp4
-│   ├── poster.jpg
-│   └── frames/         章节关键帧
-└── tools/
-    └── ingest.py       入库脚本
-```
-
-`index.html` / `lesson.html` / `assets/` 是**固定模板**，任何时候都不需要动。
-
----
-
-## 新增一场分享
-
-前置：视频已经用 Watchless 跑完到 `scenes` 阶段（`work/scene-manifest.json` 存在）。
+在安装了本 Skill 的仓库根目录运行：
 
 ```bash
-cd learning-site
-
-python tools/ingest.py "<Watchless 项目目录>" \
-  --id tom-lee-sp8000 \
-  --source "CNBC" \
-  --speaker "Tom Lee / Jay Woods" \
-  --tags "财经,美股"
+python3 scripts/serve.py --directory /path/to/learning-site --port 8765
 ```
 
-跑完刷新 `index.html` 即可看到新课。
+将 `/path/to/learning-site` 换成本站点目录，然后打开 `http://127.0.0.1:8765/index.html`。预览服务仅监听本机，并支持视频按位置读取。直接双击 HTML 文件不能完整验证加载、跳播等行为。
 
-### 参数
+## 新增视频
 
-| 参数 | 说明 |
-|---|---|
-| `--id` | 课程 id，只用字母数字和连字符，决定 URL 与媒体目录名 |
-| `--title` | 标题，默认取 `work/acquisition.json` |
-| `--speaker` | 分享人，默认从 `speaker-map.json` 自动汇总高置信度发言人 |
-| `--source` | 来源名，默认按链接域名推导 |
-| `--source-url` | 原始链接，默认取 `acquisition.json` 的 `input` |
-| `--date` | 日期 `YYYY-MM-DD`，默认今天；**目录按月份自动分组** |
-| `--tags` | 逗号分隔标签，参与搜索 |
-| `--summary` | 摘要，默认从 `share/*-light-polished.md` 提取首段 |
-| `--site` | 站点根目录，默认脚本上一级 |
-| `--video` | `auto`（默认）/ `copy` / `transcode` / `skip` |
-| `--link` | 同盘时用硬链接代替拷贝，省空间 |
+最简单的方式是在 AI 编程工具中加载仓库根目录的 `SKILL.md`，然后发送 YouTube 链接或本地视频文件。Skill 会接续转录、章节、笔记、字幕、全片总结、入库和浏览器检查。
 
-### 关于视频
-
-`--video auto` 会检测编码：浏览器放不了的（如 **AV1**、HEVC）自动转成
-h264 + aac + faststart；已经兼容的直接拷贝。
-
-源文件没变时会跳过重复处理，所以改标题、改标签可以放心重跑。
-
----
-
-## 本地打开
-
-直接双击 `index.html` 就能用（数据以 `.js` 形式加载，不依赖服务器）。
-
-需要局域网分享时：
+如果已有处理完的 Watchless 项目，也可以从本站点目录手动入库：
 
 ```bash
-python -m http.server 8000
+python3 tools/ingest.py "/path/to/watchless-project" \
+  --site "$PWD" --id lesson-id --source "来源" --speaker "讲者"
 ```
 
----
+项目需要包含已核对的章节、关键帧和场景笔记；请求的语言版本与全片总结也要准备齐全。完整输入和交付检查以仓库根目录的 `SKILL.md` 为准。同一 `--id` 重新入库会更新原课程，不会产生重复目录项。
 
-## 数据来源
+## 文件结构
 
-`ingest.py` 从 Watchless 项目的这些产物里取内容：
+| 路径 | 用途 |
+| --- | --- |
+| `index.html`、`lesson.html`、`assets/` | 所有课程共用的页面与样式 |
+| `data/catalog.js` | 文章目录 |
+| `data/lesson-<id>.js` | 一门课程的章节、笔记和字幕数据 |
+| `media/<id>/` | 视频、关键画面和全片总结 |
+| `tools/ingest.py` | 将处理结果写入本站点 |
 
-| 来源 | 用途 |
-|---|---|
-| `work/acquisition.json` | 标题、视频路径、时长、原始链接 |
-| `work/scene-manifest.json` | 章节起止时间、关键帧时刻 |
-| `work/codex-notes/scene_XXX.md` | 章节标题、解说段落、画面说明 |
-| `work/keyframes/scene_XXX_*.jpg` | 章节关键帧 |
-| `work/speaker-map.json` | 说话人身份映射 |
-| `work/transcript/*_transcript.txt` | 带时间码的原话（"原话"模式） |
-| `share/*-light-polished.md` | 内容摘要 |
-
-缺 `codex-notes` 的章节会回退成转录原文，脚本会在结尾提示。
-
----
-
-## 重新导入同一课
-
-同一个 `--id` 重复导入会**覆盖**该课数据并就地更新目录，不会产生重复条目。
-彻底重来就把 `media/<id>/` 和 `data/lesson-<id>.js` 删掉再跑。
+本仓库的公开版本包含一门可播放示例课程。另三门课程的文章数据和截图可阅读，视频文件仅保存在作者本机；如需播放，请放入对应 `media/<id>/video.mp4`，或使用文章中的原视频链接。

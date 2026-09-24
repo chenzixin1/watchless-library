@@ -65,7 +65,7 @@
   function loadScript(src, globalName) {
     return new Promise(function (resolve, reject) {
       var s = document.createElement('script');
-      s.src = src;
+      s.src = src + (src.indexOf('?') === -1 ? '?' : '&') + 'fresh=' + Date.now();
       s.onload = function () {
         var data = window[globalName];
         delete window[globalName];
@@ -486,6 +486,20 @@
       syncFollowUI();
     }
 
+    function fillVideoSummary(section) {
+      section.replaceChildren();
+      var points = lesson.videoSummary || [];
+      section.hidden = !points.length;
+      if (!points.length) return;
+      section.lang = noteLanguage;
+      section.appendChild(el('h2', null, noteLanguage === 'en' ? 'Video summary' : '视频总结'));
+      var list = el('ul');
+      points.forEach(function (point) {
+        list.appendChild(el('li', null, point[noteLanguage] || point.zh));
+      });
+      section.appendChild(list);
+    }
+
     function renderWatchPane() {
       var pane = el('section', 'watch-pane');
       pane.id = 'watch-pane';
@@ -536,6 +550,11 @@
         }
       } catch (e) {}
       info.appendChild(el('p', 'watch-instruction', '点击右侧章节或画面，回到视频对应位置。'));
+      var videoSummary = el('section', 'watch-summary');
+      videoSummary.id = 'watch-summary';
+      videoSummary.setAttribute('aria-label', '整个视频的要点');
+      fillVideoSummary(videoSummary);
+      info.appendChild(videoSummary);
       pane.appendChild(info);
 
       var chapterHeading = el('div', 'chapter-heading');
@@ -650,6 +669,8 @@
       languages.addEventListener('change', function () {
         noteLanguage = languages.value;
         write('learning-site:note-language', noteLanguage);
+        var videoSummary = $('#watch-summary');
+        if (videoSummary) fillVideoSummary(videoSummary);
         var scroll = $('#reading');
         var previous = scroll.scrollTop;
         scroll.replaceChildren(renderArticleBody());
@@ -767,10 +788,12 @@
           var p = el('p', 'paragraph' + (para.speaker ? '' : (scene.paragraphs.indexOf(para) ? ' is-cont' : '')));
           p.title = '点击回听本章节';
           if (para.speaker) {
-            var who = el('span', 'who', para.speaker);
+            var who = el('span', 'who', para.speaker + (para.role ? '' : '：'));
             p.appendChild(who);
-            if (para.role) p.appendChild(el('span', 'role', '（' + para.role + '）'));
-            p.appendChild(document.createTextNode('：'));
+            if (para.role) {
+              p.appendChild(el('span', 'role', '（' + para.role + '）'));
+              p.appendChild(document.createTextNode('：'));
+            }
           }
           appendEmphasis(p, para.text);
           p.addEventListener('click', function () {

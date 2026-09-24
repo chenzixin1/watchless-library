@@ -1,0 +1,11 @@
+{
+  "points": [
+    {"scenes": [1, 2, 3], "zh": "访谈从“AI 很聪明却仍做不好日常工作”的落差切入，介绍 Diogo Almeida 与 TypeSafe 推出的 Jev，以及可编程 System 1 模型的定位。", "en": "The interview opens with the gap between impressive AI capabilities and weak everyday automation, then introduces Diogo Almeida, TypeSafe, Jev, and its programmable System 1 framing."},
+    {"scenes": [4, 5, 6], "zh": "Diogo 讨论 RLHF 可能带来的模式坍缩和校准问题、可编程约束与安全对齐，并解释为何团队不把公开榜单当作首要目标。", "en": "Diogo discusses possible RLHF mode collapse and calibration issues, programmable constraints and safety alignment, and why his team does not prioritize public leaderboards."},
+    {"scenes": [7, 8, 9], "zh": "他将数据、算力和任务选择放在一起比较，区分 RLCD、RLHF、RLVR，并解释强模型仍难以直接自动化整个经济中的实际工作。", "en": "He compares data, compute, and task selection, distinguishes RLCD, RLHF, and RLVR, and explains why strong models still struggle to automate real economic work."},
+    {"scenes": [10, 11, 12], "zh": "产品层面强调可靠性、鲁棒性与确定性，也谈到模型版本的长期支持、成本效率，以及 Jev API 应暴露怎样的编程原语。", "en": "On the product side, he stresses reliability, robustness, determinism, long-term model support, cost efficiency, and the programming primitives exposed by the Jev API."},
+    {"scenes": [13, 14, 15, 16], "zh": "构建应用时，他主张把复杂任务拆成可检验的小决策；访谈还延伸到软件形态、计算机操作、暗数据与编程智能体。", "en": "For applications, he advocates breaking complex work into checkable small decisions; the discussion extends to software form factors, computer use, dark data, and coding agents."},
+    {"scenes": [17, 18, 19, 20], "zh": "后半段回到 AI 安全与 RLVR 的边界、为何不投入十亿美元做预训练，以及他从 OpenAI 到 TypeSafe 的经历和对新实验室路线的看法。", "en": "Later, he covers AI safety and RLVR limits, why he would not spend a billion dollars on pretraining, his move from OpenAI to TypeSafe, and his view of other labs' strategies."},
+    {"scenes": [21], "zh": "结尾展望 KV 缓存之后的编程智能体和多智能体协作，重点仍是让模型在真实工作流中可靠地完成任务。", "en": "The closing discussion looks beyond KV cache toward coding agents and multi-agent collaboration, with reliable completion of real workflows as the recurring goal."}
+  ]
+}

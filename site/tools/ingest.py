@@ -42,6 +42,7 @@ CUE_RE = re.compile(r"^\[(\d+(?:\.\d+)?)s\s*-\s*(\d+(?:\.\d+)?)s\]\s*(.*)$")
 LESSON_ID_RE = re.compile(r"^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$")
 EMPHASIS_RE = re.compile(r"\*\*[^*\n]{2,160}\*\*")
 SPEAKER_PREFIX_RE = re.compile(r"^\*\*[^*\n]{1,32}\*\*[：:]\s*")
+PLAIN_ROLE_LABEL_RE = re.compile(r"(?:^|[。！？\n])\s*(?:主持人问|主持人说|嘉宾回答|嘉宾回应|嘉宾描述任务)[：:]")
 
 
 def validate_lesson_id(value: str) -> str:
@@ -113,7 +114,7 @@ def split_speaker(text: str, speakers: dict, known_names: set) -> dict:
         r = ROLE_RE.match(head)
         if r and r.group(1).strip():
             name, role = r.group(1).strip(), r.group(2).strip()
-        elif head in known_names or head in {"主持人", "嘉宾", "旁白", "Host", "Guest"} or re.fullmatch(r"说话人\d+", head) or re.fullmatch(r"[A-Za-z][A-Za-z .\-']{1,22}", head):
+        elif head in known_names or head in {"主持人", "主持人问", "主持人说", "嘉宾", "嘉宾回答", "嘉宾回应", "嘉宾描述任务", "旁白", "Host", "Guest"} or re.fullmatch(r"说话人\d+", head) or re.fullmatch(r"[A-Za-z][A-Za-z .\-']{1,22}", head):
             name = head
 
     if not name:
@@ -351,6 +352,31 @@ def extract_summary(project: Path) -> str:
     return ""
 
 
+def validate_video_summary(data: dict, scenes: list, languages: list[str] | None = None) -> list[dict]:
+    """Require concise, chronological points that account for every chapter."""
+    points = data.get("points") if isinstance(data, dict) else None
+    if not isinstance(points, list) or not 3 <= len(points) <= 12:
+        raise ValueError("视频总结需要 3–12 条要点")
+    expected = set(range(1, len(scenes) + 1))
+    covered = set()
+    previous = 0
+    for index, point in enumerate(points, 1):
+        chapters = point.get("scenes") if isinstance(point, dict) else None
+        if (not isinstance(chapters, list) or not chapters or
+                any(type(number) is not int or number not in expected for number in chapters) or
+                chapters != sorted(set(chapters)) or chapters[0] < previous):
+            raise ValueError(f"视频总结第 {index} 条的章节编号无效或顺序错误")
+        previous = chapters[-1]
+        covered.update(chapters)
+        for language in languages or ["zh"]:
+            value = point.get(language)
+            if not isinstance(value, str) or not 10 <= len(value.strip()) <= 300 or "\n" in value:
+                raise ValueError(f"视频总结第 {index} 条缺少简明的 {language} 文本")
+    if covered != expected:
+        raise ValueError(f"视频总结未覆盖全部章节：{sorted(expected - covered)}")
+    return points
+
+
 JS_HEADER = "/* 由 tools/ingest.py 自动生成，请勿手动编辑。 */\n"
 
 
@@ -402,6 +428,12 @@ def validate_delivery(work: Path, manifest: dict, localization: dict | None, req
     scenes = manifest.get("scenes", [])
     if not scenes:
         raise ValueError("交付检查：缺少章节")
+    if requirements.get("require_video_summary"):
+        summary_path = work / "video-summary.json"
+        if not summary_path.is_file():
+            raise ValueError("交付检查：缺少 work/video-summary.json")
+        validate_video_summary(json.loads(summary_path.read_text(encoding="utf-8")), scenes,
+                               requirements.get("note_languages", ["zh"]))
     if requirements.get("complete_notes"):
         for scene in scenes:
             path = work / "codex-notes" / f"scene_{int(scene['id']):03d}.md"
@@ -420,6 +452,8 @@ def validate_delivery(work: Path, manifest: dict, localization: dict | None, req
             note = parse_note(path) if path.is_file() else {}
             if not any(SPEAKER_PREFIX_RE.match(paragraph) for paragraph in note.get("dialogue", [])):
                 raise ValueError(f"交付检查：访谈笔记第 {scene['id']} 章缺少说话人标签")
+            if any(PLAIN_ROLE_LABEL_RE.search(paragraph) for paragraph in note.get("dialogue", [])):
+                raise ValueError(f"交付检查：访谈笔记第 {scene['id']} 章仍有未结构化的主持人或嘉宾标签")
     data = localization or {}
     validate_localization(data, len(scenes))
     for language in requirements.get("note_languages", []):
@@ -608,6 +642,16 @@ def main() -> None:
     duration = float(acq.get("duration_sec") or (scenes[-1]["end"] if scenes else 0))
     summary = args.summary if args.summary is not None else extract_summary(project)
 
+    summary_path = work / "video-summary.json"
+    if not summary_path.exists():
+        summary_path = site / "media" / lesson_id / "video-summary.json"
+    video_summary = None
+    if summary_path.exists():
+        video_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        validate_video_summary(video_summary, scenes, (requirements or {}).get("note_languages", ["zh"]))
+    elif requirements and requirements.get("require_video_summary"):
+        raise ValueError("交付检查：缺少 work/video-summary.json")
+
     localization_path = work / "localization.json"
     if not localization_path.exists():
         localization_path = media_dir / "localization.json"
@@ -695,6 +739,7 @@ def main() -> None:
         "month": args.date[:7],
         "duration": round(duration, 2),
         "summary": summary,
+        "videoSummary": video_summary["points"] if video_summary else [],
         "video": video_rel,
         "poster": poster_rel,
         "tags": [t.strip() for t in args.tags.split(",") if t.strip()],
@@ -708,6 +753,9 @@ def main() -> None:
         if localization_path != media_dir / "localization.json":
             (media_dir / "localization.json").write_text(
                 json.dumps(localization, ensure_ascii=False, indent=2), encoding="utf-8")
+    if video_summary is not None and summary_path != media_dir / "video-summary.json":
+        (media_dir / "video-summary.json").write_text(
+            json.dumps(video_summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     write_js(site / "data" / f"lesson-{lesson_id}.js", "__LESSON__", lesson)
 
@@ -765,6 +813,7 @@ def main() -> None:
     print(f"  关键帧    {frame_count} 张")
     print(f"  视频      {video_rel or '（无）'}")
     print(f"  摘要      {'有' if summary else '（无）'}")
+    print(f"  视频要点  {len(video_summary['points']) if video_summary else 0} 条")
     print(f"  目录      {len(lessons)} 门课")
     if missing_notes:
         print(f"  提示      以下章节缺少 codex-notes 笔记，已回退为转录原文：{', '.join(missing_notes)}")

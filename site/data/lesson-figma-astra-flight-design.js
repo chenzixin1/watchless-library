@@ -10,6 +10,43 @@ window.__LESSON__ = {
  "month": "2026-09",
  "duration": 163.0,
  "summary": "",
+ "videoSummary": [
+  {
+   "scenes": [
+    1
+   ],
+   "zh": "Figma 希望智能体既能在产品内工作，也能从外部工作流调用 Figma；演示从一份驾驶舱原型展开。",
+   "en": "Figma wants agents to work both inside its product and from external workflows; the demo begins with a cockpit prototype."
+  },
+  {
+   "scenes": [
+    2
+   ],
+   "zh": "嘉宾认为 Astra 会先理解任务、形成自己的判断；执行途中仍可接受新的指导和方向调整。",
+   "en": "The guest says Astra first takes time to understand a task, then forms a plan that can still be redirected during execution."
+  },
+  {
+   "scenes": [
+    3
+   ],
+   "zh": "以单人直升机的短途飞行为题，模型从几百个 token 的要求出发，用约两小时做出跨多个屏幕的高保真体验原型。",
+   "en": "Given a short-distance, single-person helicopter brief, the model reportedly built a high-fidelity, multi-screen prototype in about two hours from a few hundred tokens."
+  },
+  {
+   "scenes": [
+    4
+   ],
+   "zh": "演示的重点不只是生成单个画面，还包括先规划设计系统、复用组件，并让多个界面形成连贯的用户旅程。",
+   "en": "The notable result is more than a single screen: the model plans a design system, uses components consistently, and connects screens into a user journey."
+  },
+  {
+   "scenes": [
+    5
+   ],
+   "zh": "嘉宾希望把模型进一步用于从需求探索、原型表达，到提前验证高风险技术问题的完整产品流程。",
+   "en": "The guest hopes to use the model across product development, from exploring a rough brief and making prototypes to validating risky technical ideas early."
+  }
+ ],
  "video": "media/figma-astra-flight-design/video.mp4",
  "poster": "media/figma-astra-flight-design/poster.jpg",
  "tags": [
@@ -31,10 +68,12 @@ window.__LESSON__ = {
      "text": "开场，两人看着生成的原型感叹：这真的很棒，想想它做了多少工作——竟然**构建了整个驾驶舱体验**。"
     },
     {
-     "text": "主持人问：想进一步听听你在 Figma 做的事情。"
+     "speaker": "主持人问",
+     "text": "想进一步听听你在 Figma 做的事情。"
     },
     {
-     "text": "嘉宾回答：我们正在思考的重要问题，是如何让 Figma 从内到外都能融入智能体工作流。用户在 Figma 产品内部工作时，应当能够用到最好的模型；而工作流从应用外部开始时，也同样应该能调用 Figma。"
+     "speaker": "嘉宾回答",
+     "text": "我们正在思考的重要问题，是如何让 Figma 从内到外都能融入智能体工作流。用户在 Figma 产品内部工作时，应当能够用到最好的模型；而工作流从应用外部开始时，也同样应该能调用 Figma。"
     }
    ]
   },
@@ -48,10 +87,12 @@ window.__LESSON__ = {
    "visual": "画面展示模型对飞行产品用户、约束和旅程的文字分析。",
    "paragraphs": [
     {
-     "text": "主持人问：你对这个模型的第一印象是什么？"
+     "speaker": "主持人问",
+     "text": "你对这个模型的第一印象是什么？"
     },
     {
-     "text": "嘉宾回答：使用它时，我能感受到一种**不同于以往模型的自信**。它似乎对如何完成任务有自己的判断，**不需要太多引导**。"
+     "speaker": "嘉宾回答",
+     "text": "使用它时，我能感受到一种**不同于以往模型的自信**。它似乎对如何完成任务有自己的判断，**不需要太多引导**。"
     },
     {
      "text": "尤其是，它会先给自己时间去理解一个新任务，再真正动手。我觉得这会让后续结果好得多。即使任务已经进行到一半，我仍然可以调整它的方向、给它新的指导，这一点让我觉得很特别。"
@@ -68,10 +109,16 @@ window.__LESSON__ = {
    "visual": "Figma 画布展示多个相互关联的界面，包含飞行准备和移动端页面。",
    "paragraphs": [
     {
-     "text": "主持人问：想看看你用 Astra 做过的一些东西。嘉宾回答：好啊，我们来看一下。"
+     "speaker": "主持人问",
+     "text": "想看看你用 Astra 做过的一些东西。"
     },
     {
-     "text": "嘉宾描述任务：假设你正在为一种单人直升机设计飞行控制系统，主要用于短途出行。**先定义几个核心流程和用户旅程**，再将它们做进应用。我让模型先提出适合原型的概念，然后**真正把它构建出来**。"
+     "speaker": "嘉宾回答",
+     "text": "好啊，我们来看一下。"
+    },
+    {
+     "speaker": "嘉宾描述任务",
+     "text": "假设你正在为一种单人直升机设计飞行控制系统，主要用于短途出行。**先定义几个核心流程和用户旅程**，再将它们做进应用。我让模型先提出适合原型的概念，然后**真正把它构建出来**。"
     },
     {
      "text": "模型大约工作了两个小时，随后做出了一个新的体验原型。它建立了统一的品牌系统，用正确的方式使用组件来保持一致性；还完成了多个屏幕上的大量工作，把它们串成一条跨界面的用户旅程。"
@@ -91,10 +138,12 @@ window.__LESSON__ = {
    "visual": "两人回看原型并讨论组件一致性和设计前的规划。",
    "paragraphs": [
     {
-     "text": "主持人说：这非常不可思议。我以前没有见过模型用到这么多 Figma 功能，同时把**设计系统、组件以及整个体验流程**都处理好。"
+     "speaker": "主持人说",
+     "text": "这非常不可思议。我以前没有见过模型用到这么多 Figma 功能，同时把**设计系统、组件以及整个体验流程**都处理好。"
     },
     {
-     "text": "嘉宾回应：要把这件事做好，它必须**从相当基础的原则出发思考**——在真正开始设计之前，需要先具备什么，才能把这个系统正确建立起来。"
+     "speaker": "嘉宾回应",
+     "text": "要把这件事做好，它必须**从相当基础的原则出发思考**——在真正开始设计之前，需要先具备什么，才能把这个系统正确建立起来。"
     }
    ]
   },
@@ -108,10 +157,12 @@ window.__LESSON__ = {
    "visual": "嘉宾解释模型如何参与团队从想法探索到交付的过程。",
    "paragraphs": [
     {
-     "text": "主持人问：接下来，你个人最想用 Astra 做什么？"
+     "speaker": "主持人问",
+     "text": "接下来，你个人最想用 Astra 做什么？"
     },
     {
-     "text": "嘉宾回答：我想继续探索它如何**深度融入自己的工作流**，以及它会怎样影响 **Figma 构建和交付功能的整个过程**。"
+     "speaker": "嘉宾回答",
+     "text": "我想继续探索它如何**深度融入自己的工作流**，以及它会怎样影响 **Figma 构建和交付功能的整个过程**。"
     },
     {
      "text": "这包括从最初的规格说明开始，把凌乱的想法探索逐步收敛为团队能够达成共识的明确观点，再经过流程中的每一步，用原型和视觉方式表达想法，同时尽早验证技术上风险最高的部分。"

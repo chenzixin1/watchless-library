@@ -8,8 +8,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from ingest import split_speaker, validate_delivery
-from check_delivery import inspect
+from ingest import PLAIN_ROLE_LABEL_RE, split_speaker, validate_delivery, validate_video_summary
+from check_delivery import inspect, validate_speaker_label_samples
 
 
 class DeliveryTests(unittest.TestCase):
@@ -42,6 +42,7 @@ class DeliveryTests(unittest.TestCase):
 
     def test_bold_speaker_label_is_parsed_and_required_in_conversation(self):
         self.assertEqual(split_speaker('**付鹏**：这是判断。', {}, {'付鹏'}), {'speaker': '付鹏', 'text': '这是判断。'})
+        self.assertEqual(split_speaker('**主持人问**：你的看法？', {}, set()), {'speaker': '主持人问', 'text': '你的看法？'})
         self.manifest['mode'] = {'selected': 'conversation'}
         self.req['require_speaker_labels'] = True
         notes = self.work / 'codex-notes'; notes.mkdir()
@@ -56,6 +57,51 @@ class DeliveryTests(unittest.TestCase):
             validate_delivery(self.work, self.manifest, self.data, self.req)
         note.write_text('## Light-plus\n**付鹏**：这是 **关键判断**。')
         validate_delivery(self.work, self.manifest, self.data, self.req)
+        note.write_text('## Light-plus\n**主持人问**：这是 **关键判断**。\n\n嘉宾回答：我同意。')
+        with self.assertRaisesRegex(ValueError, '未结构化'):
+            validate_delivery(self.work, self.manifest, self.data, self.req)
+
+    def test_video_summary_covers_all_scenes_and_both_languages(self):
+        scenes = [{'id': number} for number in range(1, 4)]
+        points = [
+            {'scenes': [1], 'zh': '介绍主要问题与视频讨论的背景。', 'en': 'Introduces the main problem and context.'},
+            {'scenes': [2], 'zh': '解释中间章节提出的证据与分析。', 'en': 'Explains the evidence and analysis in the middle.'},
+            {'scenes': [3], 'zh': '总结最后一章的结论以及限制。', 'en': 'Summarizes the conclusion and its limitations.'},
+        ]
+        validate_video_summary({'points': points}, scenes, ['zh', 'en'])
+        incomplete = copy.deepcopy(points)
+        incomplete[-1]['scenes'] = [2]
+        with self.assertRaisesRegex(ValueError, '未覆盖全部章节'):
+            validate_video_summary({'points': incomplete}, scenes, ['zh', 'en'])
+        untranslated = copy.deepcopy(points)
+        untranslated[1].pop('en')
+        with self.assertRaisesRegex(ValueError, '缺少简明的 en'):
+            validate_video_summary({'points': untranslated}, scenes, ['zh', 'en'])
+
+    def test_figma_lesson_has_structured_role_labels(self):
+        raw = (ROOT / 'site/data/lesson-figma-astra-flight-design.js').read_text()
+        lesson = json.loads(raw.split('window.__LESSON__ = ', 1)[1].rsplit(';', 1)[0])
+        speakers = {p.get('speaker') for scene in lesson['scenes'] for p in scene['paragraphs']}
+        self.assertIn('主持人问', speakers)
+        self.assertIn('嘉宾回答', speakers)
+        self.assertFalse(any(PLAIN_ROLE_LABEL_RE.search(p.get('text', '')) for scene in lesson['scenes'] for p in scene['paragraphs']))
+
+    def test_browser_checkpoint_requires_colon_bold_and_underline(self):
+        raw = (ROOT / 'site/data/lesson-figma-astra-flight-design.js').read_text()
+        lesson = json.loads(raw.split('window.__LESSON__ = ', 1)[1].rsplit(';', 1)[0])
+        good = {'speaker_label_samples': [
+            {'text': '主持人问：', 'font_weight': '700', 'text_decoration_line': 'underline'},
+            {'text': '嘉宾回答：', 'font_weight': '700', 'text_decoration_line': 'underline'},
+        ]}
+        validate_speaker_label_samples(good, lesson)
+        for bad in [
+            {'speaker_label_samples': good['speaker_label_samples'][:1]},
+            {'speaker_label_samples': [dict(good['speaker_label_samples'][0], text='主持人问'), good['speaker_label_samples'][1]]},
+            {'speaker_label_samples': [dict(good['speaker_label_samples'][0], text_decoration_line='none'), good['speaker_label_samples'][1]]},
+            {'speaker_label_samples': [dict(good['speaker_label_samples'][0], font_weight='400'), good['speaker_label_samples'][1]]},
+        ]:
+            with self.assertRaises(AssertionError):
+                validate_speaker_label_samples(bad, lesson)
 
     def test_alignment_and_real_translation_required(self):
         validate_delivery(self.work, self.manifest, self.data, self.req)
@@ -81,8 +127,9 @@ class DeliveryTests(unittest.TestCase):
         site = self.work / 'site';site.mkdir()
         (work / 'delivery-requirements.json').write_text(json.dumps({'provider': 'whisper'}))
         first = inspect(project, site, 'sample')
+        self.assertEqual(first['fingerprint'], inspect(project.resolve(), site.resolve(), 'sample')['fingerprint'])
         self.assertFalse(first['complete'])
-        (work / 'browser-check.json').write_text(json.dumps({'fingerprint': first['fingerprint'], 'checks': dict.fromkeys(['playback', 'seek', 'note_languages', 'subtitle_tracks', 'bilingual_visible', 'catalog'], True), 'evidence': 'test fixture'}))
+        (work / 'browser-check.json').write_text(json.dumps({'fingerprint': first['fingerprint'], 'checks': dict.fromkeys(['playback', 'seek', 'note_languages', 'video_summary_visible', 'subtitle_tracks', 'bilingual_visible', 'catalog'], True), 'evidence': 'test fixture'}))
         self.assertTrue(inspect(project, site, 'sample')['checkpoints'][-1]['passed'])
         (work / 'localization.json').write_text('{}')
         changed = inspect(project, site, 'sample')

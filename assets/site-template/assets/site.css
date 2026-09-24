@@ -1035,6 +1035,12 @@ select:focus-visible,
 .watch-info .source-link { display: inline-block; margin-top: 8px; font-size: .78rem; font-weight: 600; }
 .watch-info .source-link:hover { text-decoration: underline; }
 .watch-info .watch-instruction { margin-top: 8px; }
+.watch-summary { margin-top: 21px; padding-top: 19px; border-top: 1px solid var(--line); }
+.watch-summary h2 { margin: 0 0 10px; font-size: .93rem; color: var(--ink-strong); }
+.watch-summary ul { margin: 0; padding-left: 1.3em; }
+.watch-summary li { margin: 0 0 9px; padding-left: .2em; font-size: .84rem; line-height: 1.7; color: var(--ink); }
+.watch-summary li::marker { color: var(--accent); }
+.watch-summary li:last-child { margin-bottom: 0; }
 .chapter-heading { margin: 17px 0 12px; }
 .chapter-heading h2 { font-size: .9rem; }
 .chapter-list button { min-height: 51px; font-size: .78rem; }
